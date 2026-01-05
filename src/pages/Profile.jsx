@@ -8,6 +8,7 @@ import { Edit2, Save, X, Upload, Calendar, Zap, Users } from 'lucide-react'
 import Avatar from '../components/Avatar'
 import toast from 'react-hot-toast'
 import { sanitizeText, sanitizeArray, validateData, profileSchema, debounce } from '../utils/security'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Profile(){
   const { currentUser, updateUserProfile } = useAuth()
@@ -55,7 +56,7 @@ export default function Profile(){
         podsJoined: (currentUser.joinedPods || []).length
       })
     } catch (error) {
-      console.error('Error fetching user data:', error)
+      trackError(error, { action: 'fetchUserData', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       toast.error('Failed to load profile data')
     }
   }
@@ -87,7 +88,7 @@ export default function Profile(){
       await updateUserProfile({ photoURL })
       toast.success('Profile picture updated! 📸')
     } catch (error) {
-      console.error('Error uploading image:', error)
+      trackError(error, { action: 'uploadAvatar', userId: currentUser?.uid }, 'error', ErrorCategory.STORAGE)
       toast.error('Failed to upload image')
     } finally {
       setUploading(false)
@@ -131,7 +132,7 @@ export default function Profile(){
       toast.success('Profile updated! ✨')
       setEditMode(false)
     } catch (error) {
-      console.error('Error updating profile:', error)
+      trackError(error, { action: 'updateProfile', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       toast.error('Failed to update profile')
     } finally {
       setSaving(false)

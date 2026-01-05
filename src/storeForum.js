@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { pods as PODS, slugify } from './podsData'
 import { db } from './lib/firebase'
 import { doc, updateDoc } from 'firebase/firestore'
+import { trackError, ErrorCategory } from './utils/errorTracking'
 
 const initialThreads = {}
 const initialPosts = {}
@@ -58,7 +59,7 @@ export const useForum = create((set, get) => ({
           joinedPods: membershipArray
         })
       } catch (error) {
-        console.error('Error syncing pod join to Firebase:', error)
+        trackError(error, { action: 'joinPod', slug, userId: state.userId }, 'error', ErrorCategory.FIRESTORE)
         // Rollback on error
         set({ membership: state.membership })
       }
@@ -82,7 +83,7 @@ export const useForum = create((set, get) => ({
           joinedPods: membershipArray
         })
       } catch (error) {
-        console.error('Error syncing pod leave to Firebase:', error)
+        trackError(error, { action: 'leavePod', slug, userId: state.userId }, 'error', ErrorCategory.FIRESTORE)
         // Rollback on error
         set({ membership: state.membership })
       }
@@ -128,6 +129,6 @@ useForum.subscribe((state) => {
   try { 
     localStorage.setItem('cosmos_forum_v1', JSON.stringify(toSave)) 
   } catch (err) {
-    console.error('Error saving to localStorage:', err)
+    trackError(err, { action: 'saveToLocalStorage' }, 'warn', ErrorCategory.STORAGE)
   }
 })

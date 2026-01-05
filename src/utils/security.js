@@ -80,17 +80,45 @@ export const emailSchema = z.object({
 
 /**
  * Password Validation Schema
+ * Requires: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
  */
 export const passwordSchema = z.object({
   password: z.string()
-    .min(6, 'Password must be at least 6 characters')
-    .max(100, 'Password too long'),
-  
+    .min(8, 'Password must be at least 8 characters')
+    .max(100, 'Password too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character (!@#$%^&*)'),
+
   confirmPassword: z.string()
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
 });
+
+/**
+ * Check password strength (returns score 0-4)
+ */
+export function getPasswordStrength(password) {
+  if (!password) return { score: 0, label: 'None', color: 'zinc' };
+
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  const labels = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
+  const colors = ['red', 'orange', 'yellow', 'green', 'emerald'];
+
+  return {
+    score: Math.min(score, 4),
+    label: labels[Math.min(score, 4)],
+    color: colors[Math.min(score, 4)]
+  };
+}
 
 /**
  * Journal Entry Validation Schema
@@ -112,21 +140,26 @@ export const journalSchema = z.object({
 
 /**
  * Signup Validation Schema
+ * Password requires: 8+ chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
  */
 export const signupSchema = z.object({
   displayName: z.string()
     .min(1, 'Name is required')
     .max(100, 'Name too long')
     .refine(name => name.trim().length > 0, 'Name cannot be empty'),
-  
+
   email: z.string()
     .email('Invalid email address')
     .min(1, 'Email is required'),
-  
+
   password: z.string()
-    .min(6, 'Password must be at least 6 characters')
-    .max(100, 'Password too long'),
-  
+    .min(8, 'Password must be at least 8 characters')
+    .max(100, 'Password too long')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+
   passwordConfirm: z.string()
 }).refine(data => data.password === data.passwordConfirm, {
   message: "Passwords don't match",

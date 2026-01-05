@@ -1,5 +1,6 @@
 import React from 'react'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 /**
  * Error Boundary Component
@@ -22,16 +23,13 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // Log error details for debugging
-    console.error('ErrorBoundary caught an error:', error, errorInfo)
-    
+    // Track error with our error tracking utility
+    trackError(error, { component: 'ErrorBoundary', errorInfo }, 'critical', ErrorCategory.UI)
+
     this.setState({
       error: error,
       errorInfo: errorInfo
     })
-
-    // You can also log the error to an error reporting service
-    // Example: logErrorToService(error, errorInfo)
   }
 
   handleReset = () => {

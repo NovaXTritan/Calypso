@@ -8,6 +8,7 @@ import Avatar from '../components/Avatar'
 import { getOrCreateConversation, subscribeToConversations } from '../lib/chat'
 import { calculateMatches, getMatchReason, getMatchQuality } from '../lib/matching'
 import toast from 'react-hot-toast'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Matches(){
   const navigate = useNavigate()
@@ -75,7 +76,7 @@ export default function Matches(){
       setAvailableGoals(Array.from(goals))
 
     } catch (error) {
-      console.error('Error fetching users:', error)
+      trackError(error, { action: 'fetchMatches', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       toast.error('Failed to load matches')
     } finally {
       setLoading(false)
@@ -106,7 +107,7 @@ export default function Matches(){
       const conversation = await getOrCreateConversation(currentUser, user)
       navigate(`/chat/${conversation.id}`)
     } catch (error) {
-      console.error('Error starting chat:', error)
+      trackError(error, { action: 'startChat', userId: currentUser?.uid, targetUserId: user?.uid }, 'error', ErrorCategory.FIRESTORE)
       toast.error('Failed to start chat')
     } finally {
       setStartingChat(null)

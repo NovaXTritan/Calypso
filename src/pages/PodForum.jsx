@@ -1,11 +1,11 @@
 // PodForum.jsx - Clean Pod page with activity feed
 import React, { useState, useEffect, useCallback, memo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
   onSnapshot,
   limit,
   doc,
@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../contexts/AuthContext'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 import { 
   ArrowLeft, 
   Users, 
@@ -77,7 +78,7 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('PodForum Error:', error, errorInfo)
+    trackError(error, { component: 'PodForum', errorInfo }, 'error', ErrorCategory.UI)
   }
 
   render() {
@@ -247,14 +248,14 @@ function PodForumContent() {
             setLoading(false)
             setError(null)
           } catch (err) {
-            console.error('Error processing proofs:', err)
+            trackError(err, { action: 'processProofs', slug }, 'error', ErrorCategory.FIRESTORE)
             setError('Failed to process activity data')
             setLoading(false)
           }
         },
         (err) => {
-          console.error('Firestore error:', err)
-          
+          trackError(err, { action: 'fetchProofs', slug }, 'error', ErrorCategory.FIRESTORE)
+
           if (err?.code === 'failed-precondition') {
             setError('Database indexes are being built. Please try again in a few minutes.')
           } else if (err?.code === 'permission-denied') {
@@ -267,7 +268,7 @@ function PodForumContent() {
         }
       )
     } catch (err) {
-      console.error('Query setup error:', err)
+      trackError(err, { action: 'setupProofsQuery', slug }, 'error', ErrorCategory.FIRESTORE)
       setError('Failed to connect to database')
       setLoading(false)
     }
@@ -300,11 +301,11 @@ function PodForumContent() {
           })))
         },
         (err) => {
-          console.warn('Threads fetch error:', err)
+          trackError(err, { action: 'fetchThreads', slug }, 'warn', ErrorCategory.FIRESTORE)
         }
       )
     } catch (err) {
-      console.warn('Threads query error:', err)
+      trackError(err, { action: 'setupThreadsQuery', slug }, 'warn', ErrorCategory.FIRESTORE)
     }
 
     return () => {
@@ -351,7 +352,7 @@ function PodForumContent() {
       await updateUserProfile({ joinedPods: newPods })
       
     } catch (err) {
-      console.error('Join/leave error:', err)
+      trackError(err, { action: isMember ? 'leavePod' : 'joinPod', slug, userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       alert('Failed to update membership. Please try again.')
     } finally {
       setMembershipLoading(false)

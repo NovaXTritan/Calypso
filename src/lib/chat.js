@@ -32,6 +32,7 @@ import {
   arrayUnion
 } from 'firebase/firestore'
 import { db } from './firebase'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 // Get or create a conversation between two users
 export async function getOrCreateConversation(currentUser, otherUser) {
@@ -93,7 +94,7 @@ export function subscribeToConversations(userId, callback) {
     }))
     callback(conversations)
   }, (error) => {
-    console.error('Error subscribing to conversations:', error)
+    trackError(error, { action: 'subscribeToConversations', userId }, 'error', ErrorCategory.FIRESTORE)
     callback([])
   })
 }
@@ -112,7 +113,7 @@ export function subscribeToMessages(conversationId, callback) {
     }))
     callback(messages)
   }, (error) => {
-    console.error('Error subscribing to messages:', error)
+    trackError(error, { action: 'subscribeToMessages', conversationId }, 'error', ErrorCategory.FIRESTORE)
     callback([])
   })
 }
@@ -163,7 +164,7 @@ export async function markMessagesAsRead(conversationId, userId) {
     )
     await Promise.all(updates)
   } catch (error) {
-    console.error('Error marking messages as read:', error)
+    trackError(error, { action: 'markMessagesAsRead', conversationId, userId }, 'error', ErrorCategory.FIRESTORE)
   }
 }
 

@@ -12,6 +12,7 @@ import {
   formatMessageTime
 } from '../lib/chat'
 import toast from 'react-hot-toast'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Chat() {
   const { chatId } = useParams()
@@ -80,7 +81,7 @@ export default function Chat() {
       setNewMessage('')
       inputRef.current?.focus()
     } catch (error) {
-      console.error('Error sending message:', error)
+      trackError(error, { action: 'sendMessage', chatId, userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       toast.error('Failed to send message')
     } finally {
       setSending(false)

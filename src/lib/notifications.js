@@ -6,6 +6,7 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging'
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from './firebase'
 import toast from 'react-hot-toast'
+import { trackError, ErrorCategory, trackEvent } from '../utils/errorTracking'
 
 let messaging = null
 
@@ -16,7 +17,7 @@ export function initializeMessaging(app) {
       messaging = getMessaging(app)
       return messaging
     } catch (error) {
-      console.error('Failed to initialize messaging:', error)
+      trackError(error, { action: 'initializeMessaging' }, 'warn', ErrorCategory.NOTIFICATION)
       return null
     }
   }
@@ -59,7 +60,7 @@ export async function requestNotificationPermission(userId) {
 
     return null
   } catch (error) {
-    console.error('Error requesting notification permission:', error)
+    trackError(error, { action: 'requestNotificationPermission' }, 'error', ErrorCategory.NOTIFICATION)
     toast.error('Failed to enable notifications')
     return null
   }
@@ -68,7 +69,7 @@ export async function requestNotificationPermission(userId) {
 // Get FCM token and save to user profile
 async function getFCMToken(userId) {
   if (!messaging) {
-    console.error('Messaging not initialized')
+    trackError(new Error('Messaging not initialized'), { action: 'getFCMToken', userId }, 'warn', ErrorCategory.NOTIFICATION)
     return null
   }
 
@@ -89,7 +90,7 @@ async function getFCMToken(userId) {
 
     return token
   } catch (error) {
-    console.error('Error getting FCM token:', error)
+    trackError(error, { action: 'getFCMToken', userId }, 'error', ErrorCategory.NOTIFICATION)
     return null
   }
 }
@@ -104,7 +105,7 @@ export async function removeNotificationToken(userId, token) {
       notificationsEnabled: false
     })
   } catch (error) {
-    console.error('Error removing FCM token:', error)
+    trackError(error, { action: 'removeNotificationToken', userId }, 'error', ErrorCategory.NOTIFICATION)
   }
 }
 
@@ -113,7 +114,7 @@ export function onForegroundMessage(callback) {
   if (!messaging) return () => {}
 
   return onMessage(messaging, (payload) => {
-    console.log('Foreground message received:', payload)
+    trackEvent('foreground_message_received', payload)
 
     // Show toast notification for foreground messages
     const { title, body } = payload.notification || {}
@@ -132,8 +133,8 @@ export function onForegroundMessage(callback) {
 // Send notification via Cloud Function (you'll need to create this)
 export async function sendNotification(recipientId, notification) {
   // This would typically call a Cloud Function that sends the notification
-  // For now, we'll just log it
-  console.log('Would send notification to:', recipientId, notification)
+  // For now, we'll track the event for debugging
+  trackEvent('send_notification', { recipientId, notification })
 
   // Example Cloud Function call:
   // const sendNotificationFn = httpsCallable(functions, 'sendNotification')

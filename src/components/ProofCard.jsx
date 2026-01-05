@@ -2,9 +2,11 @@
 // This component will NOT crash even with malformed data
 
 import { useState, useCallback, memo } from 'react'
-import { 
+import { trackError, ErrorCategory } from '../utils/errorTracking'
+import {
   doc,
   updateDoc,
+  deleteDoc,
   arrayUnion,
   arrayRemove,
   addDoc,
@@ -12,17 +14,21 @@ import {
   serverTimestamp
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  Flame, 
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  Flame,
   Send,
   ExternalLink,
   MoreHorizontal,
   Flag,
   Bookmark,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Trash2,
+  X,
+  Check
 } from 'lucide-react'
 
 // ============================================
@@ -53,7 +59,7 @@ const safeToast = {
       const toast = require('react-hot-toast').default
       toast.success(msg)
     } catch {
-      console.log('Toast:', msg)
+      // Toast fallback - silent in production
     }
   },
   error: (msg) => {
@@ -61,7 +67,7 @@ const safeToast = {
       const toast = require('react-hot-toast').default
       toast.error(msg)
     } catch {
-      console.error('Toast Error:', msg)
+      // Toast fallback - silent in production
     }
   }
 }
@@ -183,6 +189,10 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [actionError, setActionError] = useState(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Safe data extraction with fallbacks
   const proofId = safeString(proof.id)
@@ -217,7 +227,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
     }
 
     if (!proofId) {
-      console.error('Cannot like: missing proof ID')
+      trackError('Cannot like: missing proof ID', { action: 'handleLike' }, 'warn', ErrorCategory.VALIDATION)
       return
     }
 
@@ -246,11 +256,11 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
             fromUserId: currentUserId,
             read: false,
             createdAt: serverTimestamp()
-          }).catch(err => console.warn('Notification failed:', err))
+          }).catch(err => trackError(err, { action: 'likeNotification', proofId }, 'warn', ErrorCategory.FIRESTORE))
         }
       }
     } catch (error) {
-      console.error('Error toggling like:', error)
+      trackError(error, { action: 'toggleLike', proofId }, 'error', ErrorCategory.FIRESTORE)
       setActionError('Failed to like')
       safeToast.error('Failed to like. Try again.')
     } finally {
@@ -270,7 +280,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
     }
 
     if (!proofId) {
-      console.error('Cannot comment: missing proof ID')
+      trackError('Cannot comment: missing proof ID', { action: 'handleComment' }, 'warn', ErrorCategory.VALIDATION)
       return
     }
 
@@ -303,13 +313,13 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
           fromUserId: currentUserId,
           read: false,
           createdAt: serverTimestamp()
-        }).catch(err => console.warn('Notification failed:', err))
+        }).catch(err => trackError(err, { action: 'commentNotification', proofId }, 'warn', ErrorCategory.FIRESTORE))
       }
 
       setNewComment('')
       safeToast.success('Comment added!')
     } catch (error) {
-      console.error('Error adding comment:', error)
+      trackError(error, { action: 'addComment', proofId }, 'error', ErrorCategory.FIRESTORE)
       setActionError('Failed to comment')
       safeToast.error('Failed to comment. Try again.')
     } finally {
@@ -351,7 +361,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
         safeToast.success('Link copied!')
       }
     } catch (error) {
-      console.error('Share failed:', error)
+      trackError(error, { action: 'share', proofId }, 'error', ErrorCategory.UI)
       safeToast.error('Could not share')
     }
   }, [proofId, content])
@@ -379,10 +389,72 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
         safeToast.success('Bookmarked!')
       }
     } catch (error) {
-      console.error('Error bookmarking:', error)
+      trackError(error, { action: 'bookmark', proofId }, 'warn', ErrorCategory.FIRESTORE)
       // Don't show error toast for bookmarks - less critical
     }
   }, [currentUserId, proofId, isBookmarked])
+
+  const handleEdit = useCallback(() => {
+    setEditContent(content)
+    setIsEditing(true)
+    setShowMenu(false)
+  }, [content])
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditing(false)
+    setEditContent('')
+  }, [])
+
+  const handleSaveEdit = useCallback(async () => {
+    const trimmedContent = editContent.trim()
+    if (!trimmedContent) {
+      safeToast.error('Content cannot be empty')
+      return
+    }
+
+    if (!proofId) {
+      trackError('Cannot edit: missing proof ID', { action: 'handleSaveEdit' }, 'warn', ErrorCategory.VALIDATION)
+      return
+    }
+
+    try {
+      const sanitizedContent = sanitize(trimmedContent)
+      const proofRef = doc(db, 'proofs', proofId)
+
+      await updateDoc(proofRef, {
+        content: sanitizedContent,
+        updatedAt: Date.now()
+      })
+
+      setIsEditing(false)
+      setEditContent('')
+      safeToast.success('Post updated!')
+    } catch (error) {
+      trackError(error, { action: 'editPost', proofId }, 'error', ErrorCategory.FIRESTORE)
+      safeToast.error('Failed to update post')
+    }
+  }, [editContent, proofId])
+
+  const handleDelete = useCallback(async () => {
+    if (!proofId) {
+      trackError('Cannot delete: missing proof ID', { action: 'handleDelete' }, 'warn', ErrorCategory.VALIDATION)
+      return
+    }
+
+    setIsDeleting(true)
+
+    try {
+      await deleteDoc(doc(db, 'proofs', proofId))
+      safeToast.success('Post deleted')
+    } catch (error) {
+      trackError(error, { action: 'deletePost', proofId }, 'error', ErrorCategory.FIRESTORE)
+      safeToast.error('Failed to delete post')
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }, [proofId])
+
+  const isAuthor = currentUserId && authorId && currentUserId === authorId
 
   // ============================================
   // SAFE RENDER FUNCTIONS
@@ -447,7 +519,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
           )
       }
     } catch (error) {
-      console.error('Error rendering content:', error)
+      trackError(error, { action: 'renderContent', proofId }, 'error', ErrorCategory.UI)
       return <p className="text-zinc-400 italic">Content could not be displayed</p>
     }
   }
@@ -495,7 +567,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
         )
       }).filter(Boolean) // Remove nulls
     } catch (error) {
-      console.error('Error rendering comments:', error)
+      trackError(error, { action: 'renderComments', proofId }, 'error', ErrorCategory.UI)
       return null
     }
   }
@@ -581,19 +653,38 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
           
           {showMenu && (
             <>
-              <div 
-                className="fixed inset-0 z-10" 
-                onClick={() => setShowMenu(false)} 
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowMenu(false)}
               />
               <div className="absolute right-0 top-full mt-1 w-40 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-20 overflow-hidden">
-                <button 
+                {isAuthor && (
+                  <>
+                    <button
+                      onClick={handleEdit}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }}
+                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                    <div className="border-t border-white/10" />
+                  </>
+                )}
+                <button
                   onClick={() => { handleBookmark(); setShowMenu(false); }}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
                 >
                   <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current text-brand-400' : ''}`} />
                   {isBookmarked ? 'Bookmarked' : 'Bookmark'}
                 </button>
-                <button 
+                <button
                   onClick={() => setShowMenu(false)}
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
                 >
@@ -606,9 +697,65 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
         </div>
       </div>
 
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-white/10 rounded-xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-semibold text-white mb-2">Delete Post?</h3>
+            <p className="text-zinc-400 text-sm mb-6">
+              This action cannot be undone. Your post will be permanently deleted.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-4 py-2 border border-white/10 rounded-lg hover:bg-white/5 transition"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50"
+              >
+                {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="mb-4">
-        {renderContent()}
+        {isEditing ? (
+          <div className="space-y-3">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 focus:border-brand-500 rounded-lg text-white placeholder-zinc-500 focus:outline-none transition min-h-[100px]"
+              maxLength={2000}
+              autoFocus
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={handleCancelEdit}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg transition"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition"
+              >
+                <Check className="w-4 h-4" />
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          renderContent()
+        )}
       </div>
 
       {/* Thread Context */}

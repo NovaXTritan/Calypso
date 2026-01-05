@@ -2,6 +2,7 @@
 // Create and post proofs with comprehensive validation and error handling
 
 import { useState, useRef, useCallback, memo } from 'react'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 import { 
   collection, 
   addDoc, 
@@ -50,7 +51,7 @@ const safeToast = {
       const toast = require('react-hot-toast').default
       toast.success(msg)
     } catch {
-      console.log('Success:', msg)
+      // Toast fallback - silent in production
     }
   },
   error: (msg) => {
@@ -58,7 +59,7 @@ const safeToast = {
       const toast = require('react-hot-toast').default
       toast.error(msg)
     } catch {
-      console.error('Error:', msg)
+      // Toast fallback - silent in production
     }
   }
 }
@@ -131,7 +132,7 @@ function ProofComposer({
     const auth = useAuth()
     user = auth?.currentUser
   } catch {
-    console.warn('Auth context not available')
+    trackError('Auth context not available', { component: 'Composer' }, 'warn', ErrorCategory.AUTH)
   }
   
   const fileInputRef = useRef(null)
@@ -157,7 +158,7 @@ function ProofComposer({
         return userDoc.data()
       }
     } catch (error) {
-      console.warn('Error fetching user profile:', error)
+      trackError(error, { action: 'getUserProfile', userId: user?.uid }, 'warn', ErrorCategory.FIRESTORE)
     }
     return null
   }, [user?.uid])
@@ -192,7 +193,7 @@ function ProofComposer({
       }
       reader.readAsDataURL(file)
     } catch (err) {
-      console.error('Image select error:', err)
+      trackError(err, { action: 'imageSelect' }, 'error', ErrorCategory.UI)
       setError('Failed to select image')
     }
   }, [])
@@ -210,7 +211,7 @@ function ProofComposer({
       await uploadBytes(storageRef, imageFile)
       return getDownloadURL(storageRef)
     } catch (error) {
-      console.error('Upload error:', error)
+      trackError(error, { action: 'uploadImage', userId: user?.uid }, 'error', ErrorCategory.STORAGE)
       throw new Error('Failed to upload image')
     }
   }, [imageFile, user?.uid])
@@ -246,7 +247,7 @@ function ProofComposer({
         return 1 // Streak broken
       }
     } catch (error) {
-      console.warn('Streak calculation error:', error)
+      trackError(error, { action: 'calculateStreak', userId: user?.uid }, 'warn', ErrorCategory.FIRESTORE)
       return 1
     }
   }, [user?.uid])
@@ -354,7 +355,7 @@ function ProofComposer({
         totalProofs: increment(1),
         streak: streak,
         lastProofDate: serverTimestamp()
-      }).catch(err => console.warn('Stats update failed:', err))
+      }).catch(err => trackError(err, { action: 'updateStats', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE))
 
       // Reset form
       setContent('')
@@ -378,7 +379,7 @@ function ProofComposer({
       }
 
     } catch (error) {
-      console.error('Post error:', error)
+      trackError(error, { action: 'postProof', podSlug, type }, 'error', ErrorCategory.FIRESTORE)
       const errorMsg = error?.message || 'Failed to post. Please try again.'
       setError(errorMsg)
       safeToast.error(errorMsg)
@@ -559,8 +560,9 @@ function ProofComposer({
                   onClick={handleClear}
                   disabled={isPosting}
                   className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/70 rounded-full transition-colors disabled:opacity-50"
+                  aria-label="Remove selected image"
                 >
-                  <X className="w-5 h-5 text-white" />
+                  <X className="w-5 h-5 text-white" aria-hidden="true" />
                 </button>
               </div>
             ) : (

@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
 import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, orderBy, query } from 'firebase/firestore'
 import { Calendar, Clock, Users, MapPin, ExternalLink } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Events(){
   const { currentUser } = useAuth()
@@ -23,7 +25,8 @@ export default function Events(){
       }))
       setEvents(eventsData)
     } catch (error) {
-      console.error('Error fetching events:', error)
+      trackError(error, { action: 'fetchEvents' }, 'error', ErrorCategory.FIRESTORE)
+      toast.error('Failed to load events')
     } finally {
       setLoading(false)
     }
@@ -49,8 +52,8 @@ export default function Events(){
 
       await fetchEvents()
     } catch (error) {
-      console.error('Error updating RSVP:', error)
-      alert('Failed to update RSVP')
+      trackError(error, { action: 'updateRSVP', eventId, userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
+      toast.error('Failed to update RSVP')
     }
   }
 

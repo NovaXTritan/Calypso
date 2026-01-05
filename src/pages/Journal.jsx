@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
-import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore'
-import { Calendar, Trash2, Search, AlertCircle } from 'lucide-react'
+import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { Calendar, Trash2, Search, AlertCircle, Pencil, X, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 const MOODS = ['Calm', 'Focused', 'Stressed', 'Anxious', 'Happy', 'Tired']
 
@@ -16,67 +17,52 @@ export default function Journal(){
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [fetchError, setFetchError] = useState(null)
-  const [debugInfo, setDebugInfo] = useState('')
+  const [editingEntry, setEditingEntry] = useState(null)
+  const [editContent, setEditContent] = useState('')
+  const [editMood, setEditMood] = useState('')
 
   useEffect(() => {
     fetchEntries()
   }, [currentUser])
 
   async function fetchEntries() {
-    if (!currentUser) {
-      setDebugInfo('No currentUser - user not logged in')
-      return
-    }
+    if (!currentUser) return
 
-    setDebugInfo(`Fetching entries for user: ${currentUser.uid}`)
-    
     try {
-      // Try WITHOUT orderBy first (in case index is missing)
       const q = query(
         collection(db, 'journal_entries'),
         where('userId', '==', currentUser.uid)
       )
-      
+
       const snapshot = await getDocs(q)
-      setDebugInfo(`Found ${snapshot.docs.length} documents`)
-      
-      const entriesData = snapshot.docs.map(doc => {
-        const data = doc.data()
-        console.log('Entry data:', data) // Debug log
-        return {
-          id: doc.id,
-          ...data
-        }
-      })
-      
-      // Sort manually since we removed orderBy
+
+      const entriesData = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }))
+
+      // Sort manually
       entriesData.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
-      
+
       setEntries(entriesData)
       setFetchError(null)
-      
-      if (entriesData.length > 0) {
-        toast.success(`Loaded ${entriesData.length} entries`)
-      }
     } catch (error) {
-      console.error('Error fetching entries:', error)
+      trackError(error, { action: 'fetchEntries', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       setFetchError(error.message)
-      setDebugInfo(`Error: ${error.message}`)
-      toast.error('Failed to load entries: ' + error.message)
+      toast.error('Failed to load entries')
     }
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    
+
     if (!content.trim()) {
       toast.error('Please write something first!')
       return
     }
 
     setLoading(true)
-    setDebugInfo('Saving entry...')
-    
+
     try {
       const today = new Date().toISOString().split('T')[0]
       const entryData = {
@@ -87,37 +73,65 @@ export default function Journal(){
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         createdAt: Date.now()
       }
-      
-      console.log('Saving entry:', entryData) // Debug log
-      
-      const docRef = await addDoc(collection(db, 'journal_entries'), entryData)
-      
-      console.log('Entry saved with ID:', docRef.id) // Debug log
-      setDebugInfo(`Entry saved! ID: ${docRef.id}`)
 
-      toast.success('Journal entry saved! 📝')
+      await addDoc(collection(db, 'journal_entries'), entryData)
+
+      toast.success('Journal entry saved!')
       setContent('')
       setTags('')
-      
-      // Fetch again to show new entry
+
       await fetchEntries()
     } catch (error) {
-      console.error('Error saving entry:', error)
-      setDebugInfo(`Save error: ${error.message}`)
-      toast.error('Failed to save: ' + error.message)
+      trackError(error, { action: 'saveEntry', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
+      toast.error('Failed to save entry')
     } finally {
       setLoading(false)
     }
   }
 
   async function deleteEntry(entryId) {
+    if (!confirm('Are you sure you want to delete this entry?')) return
+
     try {
       await deleteDoc(doc(db, 'journal_entries', entryId))
       toast.success('Entry deleted')
       await fetchEntries()
     } catch (error) {
-      console.error('Error deleting entry:', error)
-      toast.error('Failed to delete: ' + error.message)
+      trackError(error, { action: 'deleteEntry', entryId }, 'error', ErrorCategory.FIRESTORE)
+      toast.error('Failed to delete entry')
+    }
+  }
+
+  function startEditing(entry) {
+    setEditingEntry(entry.id)
+    setEditContent(entry.content || '')
+    setEditMood(entry.mood || 'Calm')
+  }
+
+  function cancelEditing() {
+    setEditingEntry(null)
+    setEditContent('')
+    setEditMood('')
+  }
+
+  async function saveEdit(entryId) {
+    if (!editContent.trim()) {
+      toast.error('Content cannot be empty')
+      return
+    }
+
+    try {
+      await updateDoc(doc(db, 'journal_entries', entryId), {
+        content: editContent.trim(),
+        mood: editMood,
+        updatedAt: Date.now()
+      })
+      toast.success('Entry updated!')
+      setEditingEntry(null)
+      await fetchEntries()
+    } catch (error) {
+      trackError(error, { action: 'updateEntry', entryId }, 'error', ErrorCategory.FIRESTORE)
+      toast.error('Failed to update entry')
     }
   }
 
@@ -129,22 +143,7 @@ export default function Journal(){
   return (
     <section className="mx-auto max-w-7xl px-4 py-12">
       <h2 className="text-3xl font-bold mb-6">Journal</h2>
-      
-      {/* Debug Info Panel - Remove after fixing */}
-      {debugInfo && (
-        <div className="glass p-4 rounded-xl mb-6 border border-yellow-500/30 bg-yellow-500/5">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="text-yellow-500 mt-1" size={20} />
-            <div>
-              <p className="text-sm text-yellow-500 font-semibold mb-1">Debug Info:</p>
-              <p className="text-sm text-zinc-400">{debugInfo}</p>
-              <p className="text-xs text-zinc-500 mt-2">User ID: {currentUser?.uid}</p>
-              <p className="text-xs text-zinc-500">Entries count: {entries.length}</p>
-            </div>
-          </div>
-        </div>
-      )}
-      
+
       {fetchError && (
         <div className="glass p-4 rounded-xl mb-6 border border-red-500/30 bg-red-500/5">
           <div className="flex items-start gap-3">
@@ -255,40 +254,96 @@ export default function Journal(){
             ) : (
               filteredEntries.map(entry => (
                 <div key={entry.id} className="glass p-5 rounded-2xl">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <Calendar size={16} className="text-zinc-400" />
-                      <span className="text-sm text-zinc-400">
-                        {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : 'Unknown date'}
-                      </span>
-                      <span className="px-3 py-1 rounded-full bg-brand-400/20 text-brand-400 text-xs">
-                        {entry.mood || 'Unknown'}
-                      </span>
+                  {editingEntry === entry.id ? (
+                    /* Edit Mode */
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-zinc-400">Editing entry</span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => saveEdit(entry.id)}
+                            className="p-1.5 hover:bg-green-500/20 rounded-lg transition"
+                            title="Save changes"
+                            aria-label="Save changes"
+                          >
+                            <Check size={16} className="text-green-400" />
+                          </button>
+                          <button
+                            onClick={cancelEditing}
+                            className="p-1.5 hover:bg-red-500/20 rounded-lg transition"
+                            title="Cancel editing"
+                            aria-label="Cancel editing"
+                          >
+                            <X size={16} className="text-red-400" />
+                          </button>
+                        </div>
+                      </div>
+                      <select
+                        value={editMood}
+                        onChange={e => setEditMood(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-brand-400 focus:outline-none text-sm"
+                      >
+                        {MOODS.map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      <textarea
+                        value={editContent}
+                        onChange={e => setEditContent(e.target.value)}
+                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-brand-400 focus:outline-none min-h-[100px] text-sm"
+                        maxLength={500}
+                      />
                     </div>
-                    <button
-                      onClick={() => deleteEntry(entry.id)}
-                      className="p-1 hover:bg-red-500/20 rounded-lg transition"
-                      title="Delete entry"
-                    >
-                      <Trash2 size={16} className="text-red-400" />
-                    </button>
-                  </div>
+                  ) : (
+                    /* View Mode */
+                    <>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <Calendar size={16} className="text-zinc-400" />
+                          <span className="text-sm text-zinc-400">
+                            {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : 'Unknown date'}
+                          </span>
+                          <span className="px-3 py-1 rounded-full bg-brand-400/20 text-brand-400 text-xs">
+                            {entry.mood || 'Unknown'}
+                          </span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => startEditing(entry)}
+                            className="p-1 hover:bg-brand-500/20 rounded-lg transition"
+                            title="Edit entry"
+                            aria-label="Edit entry"
+                          >
+                            <Pencil size={16} className="text-brand-400" />
+                          </button>
+                          <button
+                            onClick={() => deleteEntry(entry.id)}
+                            className="p-1 hover:bg-red-500/20 rounded-lg transition"
+                            title="Delete entry"
+                            aria-label="Delete entry"
+                          >
+                            <Trash2 size={16} className="text-red-400" />
+                          </button>
+                        </div>
+                      </div>
 
-                  <p className="text-zinc-200 mb-3 whitespace-pre-wrap">
-                    {entry.content || 'No content'}
-                  </p>
+                      <p className="text-zinc-200 mb-3 whitespace-pre-wrap">
+                        {entry.content || 'No content'}
+                      </p>
 
-                  {entry.tags && entry.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {entry.tags.map((tag, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2 py-1 rounded-md bg-white/5 text-xs text-zinc-400"
-                        >
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
+                      {entry.tags && entry.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {entry.tags.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-1 rounded-md bg-white/5 text-xs text-zinc-400"
+                            >
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               ))

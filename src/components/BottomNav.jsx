@@ -15,7 +15,11 @@ export default function BottomNav() {
   const location = useLocation()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-night-900/95 backdrop-blur-lg border-t border-white/10 safe-bottom">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-night-900/95 backdrop-blur-lg border-t border-white/10 safe-bottom"
+      aria-label="Main navigation"
+      role="navigation"
+    >
       <div className="flex items-center justify-around px-2 py-2">
         {navItems.map(({ to, label, icon: Icon }) => {
           const isActive = location.pathname === to ||
@@ -26,6 +30,8 @@ export default function BottomNav() {
               key={to}
               to={to}
               className="relative flex flex-col items-center justify-center py-2 px-3 min-w-[60px]"
+              aria-label={label}
+              aria-current={isActive ? 'page' : undefined}
             >
               <div className={`relative p-2 rounded-xl transition-colors ${
                 isActive ? 'bg-brand-500/20' : ''

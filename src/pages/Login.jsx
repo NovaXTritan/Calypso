@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { validateData, loginSchema } from '../utils/security'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -38,8 +39,8 @@ export default function Login() {
       toast.success('Welcome back! 👋')
       navigate('/')
     } catch (err) {
-      console.error('Login error:', err)
-      
+      trackError(err, { action: 'login', email }, 'error', ErrorCategory.AUTH)
+
       // Better error messages
       let errorMessage = 'Failed to log in'
       

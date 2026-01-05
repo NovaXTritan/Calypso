@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 const THRESHOLD = 80 // pixels to pull before triggering refresh
 const MAX_PULL = 120 // max pull distance
@@ -55,7 +56,7 @@ export default function usePullToRefresh(onRefresh) {
       try {
         await onRefresh?.()
       } catch (error) {
-        console.error('Refresh failed:', error)
+        trackError(error, { action: 'pullToRefresh' }, 'error', ErrorCategory.UI)
       }
 
       setIsRefreshing(false)

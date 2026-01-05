@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
+import { getPasswordStrength } from '../utils/security'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Signup() {
   const [email, setEmail] = useState('')
@@ -13,6 +15,8 @@ export default function Signup() {
   const [loading, setLoading] = useState(false)
   const { signup } = useAuth()
   const navigate = useNavigate()
+
+  const passwordStrength = useMemo(() => getPasswordStrength(password), [password])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -31,13 +35,38 @@ export default function Signup() {
       return
     }
 
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      setErrors({ password: 'Password must be at least 6 characters' })
+    // Password strength validation
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      setErrors({ password: 'Password must be at least 8 characters' })
       return
     }
 
-    // PASSWORD MATCH VALIDATION - CRITICAL FIX
+    if (!/[A-Z]/.test(password)) {
+      toast.error('Password must contain at least one uppercase letter')
+      setErrors({ password: 'Password must contain at least one uppercase letter' })
+      return
+    }
+
+    if (!/[a-z]/.test(password)) {
+      toast.error('Password must contain at least one lowercase letter')
+      setErrors({ password: 'Password must contain at least one lowercase letter' })
+      return
+    }
+
+    if (!/[0-9]/.test(password)) {
+      toast.error('Password must contain at least one number')
+      setErrors({ password: 'Password must contain at least one number' })
+      return
+    }
+
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      toast.error('Password must contain at least one special character')
+      setErrors({ password: 'Password must contain at least one special character (!@#$%^&*)' })
+      return
+    }
+
+    // PASSWORD MATCH VALIDATION
     if (password !== passwordConfirm) {
       toast.error("Passwords don't match!")
       setErrors({ passwordConfirm: "Passwords don't match" })
@@ -51,10 +80,10 @@ export default function Signup() {
       toast.success('Account created successfully! Welcome to Cosmos 🎉')
       navigate('/')
     } catch (err) {
-      console.error('Signup error:', err)
-      
+      trackError(err, { action: 'signup', email }, 'error', ErrorCategory.AUTH)
+
       let errorMessage = 'Failed to create account'
-      
+
       if (err.code === 'auth/email-already-in-use') {
         errorMessage = 'Email already in use. Please try logging in.'
       } else if (err.code === 'auth/invalid-email') {
@@ -64,7 +93,7 @@ export default function Signup() {
       } else if (err.message) {
         errorMessage = err.message
       }
-      
+
       setErrors({ general: errorMessage })
       toast.error(errorMessage)
     } finally {
@@ -155,7 +184,34 @@ export default function Signup() {
               {errors.password && (
                 <p className="text-red-400 text-sm mt-1">{errors.password}</p>
               )}
-              <p className="text-xs text-zinc-500 mt-1">Minimum 6 characters</p>
+              {password && (
+                <div className="mt-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${
+                          passwordStrength.score === 0 ? 'w-0' :
+                          passwordStrength.score === 1 ? 'w-1/4 bg-red-500' :
+                          passwordStrength.score === 2 ? 'w-2/4 bg-orange-500' :
+                          passwordStrength.score === 3 ? 'w-3/4 bg-yellow-500' :
+                          'w-full bg-green-500'
+                        }`}
+                      />
+                    </div>
+                    <span className={`text-xs font-medium ${
+                      passwordStrength.score <= 1 ? 'text-red-400' :
+                      passwordStrength.score === 2 ? 'text-orange-400' :
+                      passwordStrength.score === 3 ? 'text-yellow-400' :
+                      'text-green-400'
+                    }`}>
+                      {passwordStrength.label}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-zinc-500 mt-1">
+                Min 8 chars with uppercase, lowercase, number & special character
+              </p>
             </div>
 
             <div>

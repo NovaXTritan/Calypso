@@ -11,6 +11,7 @@ import {
   getNotificationPermission,
   requestNotificationPermission
 } from '../lib/notifications'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Settings(){
   const { currentUser, changeEmail, changePassword, updateUserProfile, logout } = useAuth()
@@ -48,7 +49,7 @@ export default function Settings(){
         setPushPermission(getNotificationPermission())
       }
     } catch (error) {
-      console.error('Error enabling push notifications:', error)
+      trackError(error, { action: 'enablePushNotifications', userId: currentUser?.uid }, 'error', ErrorCategory.NOTIFICATION)
     } finally {
       setEnablingPush(false)
     }
@@ -65,7 +66,7 @@ export default function Settings(){
       setNewEmail('')
       toast.success('Email updated successfully! ✅')
     } catch (error) {
-      console.error('Error updating email:', error)
+      trackError(error, { action: 'updateEmail', userId: currentUser?.uid }, 'error', ErrorCategory.AUTH)
       if (error.code === 'auth/requires-recent-login') {
         toast.error('Please log out and log back in to change your email')
       } else {
@@ -96,7 +97,7 @@ export default function Settings(){
       setConfirmPassword('')
       toast.success('Password updated successfully! 🔒')
     } catch (error) {
-      console.error('Error updating password:', error)
+      trackError(error, { action: 'updatePassword', userId: currentUser?.uid }, 'error', ErrorCategory.AUTH)
       if (error.code === 'auth/requires-recent-login') {
         toast.error('Please log out and log back in to change your password')
       } else {
@@ -119,7 +120,7 @@ export default function Settings(){
       })
       toast.success('Preferences saved! ✨')
     } catch (error) {
-      console.error('Error saving preferences:', error)
+      trackError(error, { action: 'savePreferences', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       toast.error('Failed to save preferences')
     } finally {
       setSavingPreferences(false)
@@ -154,7 +155,7 @@ export default function Settings(){
       // Navigate to login
       navigate('/login')
     } catch (error) {
-      console.error('Error deleting account:', error)
+      trackError(error, { action: 'deleteAccount', userId: currentUser?.uid }, 'error', ErrorCategory.AUTH)
       if (error.code === 'auth/requires-recent-login') {
         toast.error('Please log out and log back in to delete your account')
       } else {

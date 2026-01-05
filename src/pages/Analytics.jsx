@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import CalendarHeatmap from 'react-calendar-heatmap'
 import 'react-calendar-heatmap/dist/styles.css'
 import { Flame, Target, Users, TrendingUp } from 'lucide-react'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Analytics() {
   const { currentUser } = useAuth()
@@ -111,7 +112,7 @@ export default function Analytics() {
       setActivityData(heatmapData)
       setWeeklyData(weeklyActivity)
     } catch (error) {
-      console.error('Error fetching analytics:', error)
+      trackError(error, { action: 'fetchAnalytics', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
     } finally {
       setLoading(false)
     }

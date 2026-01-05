@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
 import { Rocket, LogOut, User, Scroll, Menu, X, Home, Users, Heart, BookOpen, Calendar, BarChart3, Settings } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
+import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
@@ -63,7 +64,7 @@ export default function NavBar(){
       setMobileMenuOpen(false)
       navigate('/login')
     } catch (error) {
-      console.error('Failed to log out:', error)
+      trackError(error, { action: 'logout' }, 'error', ErrorCategory.AUTH)
     }
   }
 
