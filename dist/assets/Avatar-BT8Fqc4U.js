@@ -1,0 +1,1 @@
+import{j as i}from"./index-CrkXj5Pf.js";function n({name:e}){const t=(e||"U").split(" ").map(r=>r[0]).slice(0,2).join("").toUpperCase();return i.jsx("div",{className:"w-8 h-8 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-xs",children:t})}export{n as A};

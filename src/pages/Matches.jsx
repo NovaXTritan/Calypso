@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
-import { collection, query, where, getDocs, doc, updateDoc, arrayUnion } from 'firebase/firestore'
-import { Users, Target, Zap, Send } from 'lucide-react'
+import { collection, getDocs } from 'firebase/firestore'
+import { Users, Target, Zap, MessageCircle, Sparkles } from 'lucide-react'
 import Avatar from '../components/Avatar'
+import { getOrCreateConversation, subscribeToConversations } from '../lib/chat'
+import { calculateMatches, getMatchReason, getMatchQuality } from '../lib/matching'
+import toast from 'react-hot-toast'
 
 export default function Matches(){
+  const navigate = useNavigate()
   const { currentUser } = useAuth()
   const [users, setUsers] = useState([])
   const [filteredUsers, setFilteredUsers] = useState([])
@@ -14,6 +19,26 @@ export default function Matches(){
   const [filterGoal, setFilterGoal] = useState('all')
   const [availablePods, setAvailablePods] = useState([])
   const [availableGoals, setAvailableGoals] = useState([])
+  const [conversations, setConversations] = useState([])
+  const [startingChat, setStartingChat] = useState(null)
+
+  // Subscribe to existing conversations
+  useEffect(() => {
+    if (!currentUser?.uid) return
+
+    const unsubscribe = subscribeToConversations(currentUser.uid, (convs) => {
+      setConversations(convs)
+    })
+
+    return () => unsubscribe()
+  }, [currentUser?.uid])
+
+  // Check if already chatting with a user
+  function getExistingConversation(userId) {
+    return conversations.find(conv =>
+      conv.participants.includes(userId)
+    )
+  }
 
   useEffect(() => {
     fetchUsers()
@@ -27,59 +52,22 @@ export default function Matches(){
     if (!currentUser) return
 
     try {
-      // Fetch all users except current user
+      // Fetch all users
       const usersSnapshot = await getDocs(collection(db, 'users'))
-      const allUsers = usersSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(user => user.uid !== currentUser.uid)
+      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
       // Fetch posts to calculate activity
       const postsSnapshot = await getDocs(collection(db, 'posts'))
-      const posts = postsSnapshot.docs.map(doc => doc.data())
+      const allPosts = postsSnapshot.docs.map(doc => doc.data())
 
-      // Calculate match scores
-      const usersWithScores = allUsers.map(user => {
-        let score = 0
-        
-        // Common pods (40% weight)
-        const commonPods = (user.joinedPods || []).filter(pod => 
-          (currentUser.joinedPods || []).includes(pod)
-        )
-        score += (commonPods.length / Math.max((currentUser.joinedPods || []).length, 1)) * 40
-
-        // Similar goals (40% weight)
-        const commonGoals = (user.goals || []).filter(goal =>
-          (currentUser.goals || []).some(myGoal => 
-            myGoal.toLowerCase().includes(goal.toLowerCase()) ||
-            goal.toLowerCase().includes(myGoal.toLowerCase())
-          )
-        )
-        score += (commonGoals.length / Math.max((currentUser.goals || []).length, 1)) * 40
-
-        // Recent activity (20% weight)
-        const userPosts = posts.filter(p => p.author === user.uid)
-        const recentPosts = userPosts.filter(p => 
-          Date.now() - p.createdAt < 7 * 24 * 60 * 60 * 1000 // last 7 days
-        )
-        score += Math.min(recentPosts.length / 5, 1) * 20
-
-        return {
-          ...user,
-          matchScore: Math.round(score),
-          commonPods,
-          commonGoals,
-          recentActivity: recentPosts.length
-        }
-      })
-
-      // Sort by match score
-      usersWithScores.sort((a, b) => b.matchScore - a.matchScore)
-      setUsers(usersWithScores)
+      // Use the sophisticated matching algorithm
+      const matchedUsers = calculateMatches(currentUser, allUsers, allPosts)
+      setUsers(matchedUsers)
 
       // Extract unique pods and goals for filters
       const pods = new Set()
       const goals = new Set()
-      usersWithScores.forEach(user => {
+      matchedUsers.forEach(user => {
         (user.joinedPods || []).forEach(pod => pods.add(pod))
         ;(user.goals || []).forEach(goal => goals.add(goal))
       })
@@ -88,6 +76,7 @@ export default function Matches(){
 
     } catch (error) {
       console.error('Error fetching users:', error)
+      toast.error('Failed to load matches')
     } finally {
       setLoading(false)
     }
@@ -111,10 +100,21 @@ export default function Matches(){
     setFilteredUsers(filtered)
   }
 
-  async function sendIntro(userId) {
-    // For now, just show a notification
-    // In full implementation, this would create a notification in Firestore
-    alert(`Connection request sent! (This is a demo - full implementation would notify ${userId})`)
+  async function startChat(user) {
+    setStartingChat(user.uid)
+    try {
+      const conversation = await getOrCreateConversation(currentUser, user)
+      navigate(`/chat/${conversation.id}`)
+    } catch (error) {
+      console.error('Error starting chat:', error)
+      toast.error('Failed to start chat')
+    } finally {
+      setStartingChat(null)
+    }
+  }
+
+  function openExistingChat(conversationId) {
+    navigate(`/chat/${conversationId}`)
   }
 
   if (loading) {
@@ -175,18 +175,23 @@ export default function Matches(){
               {/* Match Score Badge */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Avatar name={user.displayName} />
+                  <Avatar user={user} />
                   <div>
-                    <div className="font-semibold">{user.displayName}</div>
+                    <div className="font-semibold">{user.displayName || 'Anonymous'}</div>
                     <div className="text-xs text-zinc-400">
-                      {user.joinedPods?.length || 0} pods
+                      {getMatchReason(user)}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-brand-400/20">
-                  <Zap size={14} className="text-brand-400" />
-                  <span className="text-sm font-semibold text-brand-400">
-                    {user.matchScore}%
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-brand-400/20">
+                    <Sparkles size={14} className="text-brand-400" />
+                    <span className="text-sm font-semibold text-brand-400">
+                      {user.matchScore}%
+                    </span>
+                  </div>
+                  <span className={`text-[10px] ${getMatchQuality(user.matchScore).color}`}>
+                    {getMatchQuality(user.matchScore).label}
                   </span>
                 </div>
               </div>
@@ -247,16 +252,78 @@ export default function Matches(){
                 <span>{user.recentActivity} proofs this week</span>
               </div>
 
-              {/* Send Intro Button */}
-              <button
-                onClick={() => sendIntro(user.uid)}
-                className="w-full flex items-center justify-center gap-2 btn-primary py-2 text-sm"
-              >
-                <Send size={14} />
-                Send Intro
-              </button>
+              {/* Chat Button */}
+              {(() => {
+                const existingConv = getExistingConversation(user.uid)
+                if (existingConv) {
+                  return (
+                    <button
+                      onClick={() => openExistingChat(existingConv.id)}
+                      className="w-full flex items-center justify-center gap-2 btn-ghost py-2 text-sm"
+                    >
+                      <MessageCircle size={14} />
+                      Continue Chat
+                    </button>
+                  )
+                }
+                return (
+                  <button
+                    onClick={() => startChat(user)}
+                    disabled={startingChat === user.uid}
+                    className="w-full flex items-center justify-center gap-2 btn-primary py-2 text-sm disabled:opacity-50"
+                  >
+                    {startingChat === user.uid ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle size={14} />
+                        Start Chat
+                      </>
+                    )}
+                  </button>
+                )
+              })()}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Recent Conversations */}
+      {conversations.length > 0 && (
+        <div className="mt-10">
+          <h3 className="text-xl font-bold mb-4">Recent Chats</h3>
+          <div className="space-y-2">
+            {conversations.slice(0, 5).map(conv => {
+              const otherId = conv.participants.find(id => id !== currentUser.uid)
+              const other = conv.participantData?.[otherId]
+
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => navigate(`/chat/${conv.id}`)}
+                  className="w-full flex items-center gap-3 p-4 glass rounded-xl hover:bg-white/10 transition text-left"
+                >
+                  <Avatar
+                    user={{ photoURL: other?.photoURL, displayName: other?.name }}
+                    size="sm"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{other?.name || 'User'}</div>
+                    {conv.lastMessage && (
+                      <p className="text-sm text-zinc-400 truncate">
+                        {conv.lastMessage.senderId === currentUser.uid ? 'You: ' : ''}
+                        {conv.lastMessage.text}
+                      </p>
+                    )}
+                  </div>
+                  <MessageCircle size={18} className="text-zinc-400" />
+                </button>
+              )
+            })}
+          </div>
         </div>
       )}
     </section>

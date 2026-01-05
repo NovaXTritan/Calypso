@@ -147,3 +147,114 @@ self.addEventListener('message', e => {
     self.skipWaiting()
   }
 })
+
+// ==========================================
+// PUSH NOTIFICATIONS
+// ==========================================
+
+// Handle push events
+self.addEventListener('push', e => {
+  if (!e.data) return
+
+  let data
+  try {
+    data = e.data.json()
+  } catch {
+    data = {
+      notification: {
+        title: 'Cosmos',
+        body: e.data.text()
+      }
+    }
+  }
+
+  const { title, body, icon, badge, data: notifData } = data.notification || data
+
+  const options = {
+    body: body || 'You have a new notification',
+    icon: icon || '/cosmos/icon-192.png',
+    badge: badge || '/cosmos/icon-96.png',
+    vibrate: [100, 50, 100],
+    data: notifData || data.data || {},
+    actions: getNotificationActions(notifData?.type),
+    tag: notifData?.type || 'default',
+    renotify: true,
+    requireInteraction: notifData?.type === 'new_message'
+  }
+
+  e.waitUntil(
+    self.registration.showNotification(title || 'Cosmos', options)
+  )
+})
+
+// Get actions based on notification type
+function getNotificationActions(type) {
+  switch (type) {
+    case 'new_message':
+      return [
+        { action: 'reply', title: 'Reply' },
+        { action: 'dismiss', title: 'Dismiss' }
+      ]
+    case 'new_match':
+      return [
+        { action: 'view', title: 'View Match' },
+        { action: 'dismiss', title: 'Later' }
+      ]
+    default:
+      return []
+  }
+}
+
+// Handle notification clicks
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+
+  const { type, chatId, matchId, podSlug, eventId } = e.notification.data || {}
+
+  let url = '/cosmos/'
+
+  // Determine URL based on notification type and action
+  if (e.action === 'dismiss') {
+    return // Just close the notification
+  }
+
+  switch (type) {
+    case 'new_message':
+      url = chatId ? `/cosmos/#/chat/${chatId}` : '/cosmos/#/matches'
+      break
+    case 'new_match':
+      url = matchId ? `/cosmos/#/matches` : '/cosmos/#/matches'
+      break
+    case 'pod_activity':
+      url = podSlug ? `/cosmos/#/pods/${podSlug}` : '/cosmos/#/pods'
+      break
+    case 'event_reminder':
+      url = '/cosmos/#/events'
+      break
+    default:
+      url = '/cosmos/'
+  }
+
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clientList => {
+        // If there's already a window open, focus it and navigate
+        for (const client of clientList) {
+          if (client.url.includes('/cosmos') && 'focus' in client) {
+            client.focus()
+            client.navigate(url)
+            return
+          }
+        }
+        // Otherwise open a new window
+        if (clients.openWindow) {
+          return clients.openWindow(url)
+        }
+      })
+  )
+})
+
+// Handle notification close
+self.addEventListener('notificationclose', e => {
+  console.log('Notification closed:', e.notification.tag)
+})

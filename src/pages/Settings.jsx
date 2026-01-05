@@ -1,27 +1,58 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { db, auth as firebaseAuth } from '../lib/firebase'
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { deleteUser } from 'firebase/auth'
 import { useNavigate } from 'react-router-dom'
-import { Settings as SettingsIcon, Mail, Lock, Bell, Shield, Trash2, Moon } from 'lucide-react'
+import { Settings as SettingsIcon, Mail, Lock, Bell, Shield, Trash2, Moon, Smartphone } from 'lucide-react'
 import toast from 'react-hot-toast'
+import {
+  isNotificationSupported,
+  getNotificationPermission,
+  requestNotificationPermission
+} from '../lib/notifications'
 
 export default function Settings(){
   const { currentUser, changeEmail, changePassword, updateUserProfile, logout } = useAuth()
   const navigate = useNavigate()
-  
+
   // Account Settings
   const [newEmail, setNewEmail] = useState('')
   const [emailUpdating, setEmailUpdating] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordUpdating, setPasswordUpdating] = useState(false)
-  
+
   // Preferences
   const [emailNotifications, setEmailNotifications] = useState(currentUser?.preferences?.emailNotifications ?? true)
   const [publicProfile, setPublicProfile] = useState(currentUser?.preferences?.publicProfile ?? true)
   const [savingPreferences, setSavingPreferences] = useState(false)
+
+  // Push Notifications
+  const [pushSupported, setPushSupported] = useState(false)
+  const [pushPermission, setPushPermission] = useState('default')
+  const [enablingPush, setEnablingPush] = useState(false)
+
+  useEffect(() => {
+    setPushSupported(isNotificationSupported())
+    setPushPermission(getNotificationPermission())
+  }, [])
+
+  async function handleEnablePushNotifications() {
+    setEnablingPush(true)
+    try {
+      const token = await requestNotificationPermission(currentUser?.uid)
+      if (token) {
+        setPushPermission('granted')
+      } else {
+        setPushPermission(getNotificationPermission())
+      }
+    } catch (error) {
+      console.error('Error enabling push notifications:', error)
+    } finally {
+      setEnablingPush(false)
+    }
+  }
 
   async function handleEmailChange(e) {
     e.preventDefault()
@@ -236,6 +267,42 @@ export default function Settings(){
           </h3>
 
           <div className="space-y-4">
+            {/* Push Notifications */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium flex items-center gap-2">
+                  <Smartphone size={16} />
+                  Push Notifications
+                </div>
+                <div className="text-sm text-zinc-400">
+                  {!pushSupported && 'Not supported on this device'}
+                  {pushSupported && pushPermission === 'granted' && 'Enabled - you will receive push notifications'}
+                  {pushSupported && pushPermission === 'denied' && 'Blocked - enable in browser settings'}
+                  {pushSupported && pushPermission === 'default' && 'Get notified about messages and matches'}
+                </div>
+              </div>
+              {pushSupported && pushPermission !== 'granted' && pushPermission !== 'denied' && (
+                <button
+                  onClick={handleEnablePushNotifications}
+                  disabled={enablingPush}
+                  className="px-4 py-2 btn-primary text-sm disabled:opacity-50"
+                >
+                  {enablingPush ? 'Enabling...' : 'Enable'}
+                </button>
+              )}
+              {pushPermission === 'granted' && (
+                <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
+                  Enabled
+                </span>
+              )}
+              {pushPermission === 'denied' && (
+                <span className="px-3 py-1 bg-red-500/20 text-red-400 rounded-full text-sm">
+                  Blocked
+                </span>
+              )}
+            </div>
+
+            {/* Email Notifications */}
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium">Email Notifications</div>

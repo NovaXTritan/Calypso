@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git push)",
+      "Bash(firebase:*)",
+      "Bash(npm install:*)",
+      "Bash(node scripts/generate-icons.mjs:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

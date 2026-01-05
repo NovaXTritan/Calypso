@@ -26,6 +26,7 @@ const Analytics = lazy(() => import('./pages/Analytics'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Constitution = lazy(() => import('./pages/Constitution'))
+const Chat = lazy(() => import('./pages/Chat'))
 
 // Page transition variants
 const pageVariants = {
@@ -87,6 +88,7 @@ function AppContent() {
               <Route path="/analytics" element={<ProtectedRoute><AnimatedPage><Analytics /></AnimatedPage></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><AnimatedPage><Profile /></AnimatedPage></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><AnimatedPage><Settings /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/chat/:chatId" element={<ProtectedRoute><AnimatedPage><Chat /></AnimatedPage></ProtectedRoute>} />
             </Routes>
           </Suspense>
         </AnimatePresence>
