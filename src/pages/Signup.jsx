@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { getPasswordStrength } from '../utils/security'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
+import SEO from '../components/SEO'
 
 export default function Signup() {
   const [email, setEmail] = useState('')
@@ -103,6 +104,11 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <SEO
+        title="Sign Up"
+        description="Create your free Cosmos account. Join learning pods, ship daily proofs, and grow with peers."
+        path="/signup"
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

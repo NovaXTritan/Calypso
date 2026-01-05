@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { validateData, loginSchema } from '../utils/security'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
+import SEO from '../components/SEO'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -67,6 +68,11 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <SEO
+        title="Log In"
+        description="Log in to your Cosmos account to continue your learning journey."
+        path="/login"
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

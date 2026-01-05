@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Users, Zap, Heart, BarChart3, ArrowRight, Rocket } from 'lucide-react'
 import BlackHoleCanvas from './BlackHoleCanvas'
+import SEO from './SEO'
 
 const features = [
   {
@@ -55,6 +56,11 @@ const itemVariants = {
 export default function LandingPage() {
   return (
     <div className="relative overflow-hidden">
+      <SEO
+        title="Turn Intent Into Progress"
+        description="Join learning pods, ship daily proofs, and grow with peers who hold you accountable. Build momentum that lasts."
+        path="/"
+      />
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center">
         {/* Background Black Hole */}

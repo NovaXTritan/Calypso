@@ -1,3 +1,27 @@
+# Robots.txt for Cosmos - Peer Learning Platform
+# https://novaxtritan.github.io/Calypso/
+
 User-agent: *
 Allow: /
-Sitemap: https://novaxtritan.github.io/cosmos/sitemap.xml
+
+# Public pages
+Allow: /login
+Allow: /signup
+Allow: /constitution
+Allow: /pods
+
+# Protected pages (require auth, less useful for crawlers)
+Disallow: /journal
+Disallow: /profile
+Disallow: /settings
+Disallow: /analytics
+Disallow: /matches
+Disallow: /chat
+
+# Assets
+Allow: /assets/
+Allow: /*.js
+Allow: /*.css
+
+# Sitemap location
+Sitemap: https://novaxtritan.github.io/Calypso/sitemap.xml

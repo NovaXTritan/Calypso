@@ -1,7 +1,8 @@
 import React, { Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { HelmetProvider } from 'react-helmet-async'
 import './styles.css'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
@@ -136,13 +137,15 @@ function App(){
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ErrorBoundary>                              {/* ← ADDED - Wraps everything */}
-      <HashRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </HashRouter>
-    </ErrorBoundary>                             {/* ← ADDED */}
+    <HelmetProvider>
+      <ErrorBoundary>
+        <BrowserRouter basename="/Calypso">
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </HelmetProvider>
   </React.StrictMode>
 )
 

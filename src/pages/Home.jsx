@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import BlackHoleCanvas from '../components/BlackHoleCanvas'
 import Card from '../components/Card'
@@ -60,8 +61,8 @@ export default function Home(){
               transition={{ duration:0.7, delay:0.1 }}
               className="mt-8 flex items-center gap-4"
             >
-              <Magnetic><a href="#/pods" className="btn-primary focus-out">Explore Pods</a></Magnetic>
-              <Magnetic><a href="#/matches" className="btn-ghost focus-out">Find Peers</a></Magnetic>
+              <Magnetic><Link to="/pods" className="btn-primary focus-out">Explore Pods</Link></Magnetic>
+              <Magnetic><Link to="/matches" className="btn-ghost focus-out">Find Peers</Link></Magnetic>
             </motion.div>
           </motion.div>
 

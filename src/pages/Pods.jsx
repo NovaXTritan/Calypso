@@ -2,6 +2,7 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { pods, slugify } from '../podsData'
 import { useForum } from '../storeForum'
+import SEO from '../components/SEO'
 
 export default function Pods(){
   const membership = useForum(s => s.membership)
@@ -10,6 +11,11 @@ export default function Pods(){
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12">
+      <SEO
+        title="Learning Pods"
+        description="Join focused learning communities. Share proofs, get feedback, and keep your streaks alive with like-minded learners."
+        path="/pods"
+      />
       <h2 className="text-3xl font-bold mb-6">Pods</h2>
       <p className="text-zinc-300 mb-6">
         Join a pod to share tiny proofs, get feedback, and keep your streaks alive.
