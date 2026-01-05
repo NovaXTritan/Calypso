@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://novaxtritan.github.io/cosmos/sitemap.xml

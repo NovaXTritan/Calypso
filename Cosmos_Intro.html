@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cosmos × Apex — Interactive Explainer</title>
+
+<style>
+:root{
+  --bg:#020617;
+  --panel:#020617;
+  --border:#1e293b;
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+  --accent:#38bdf8;
+  --green:#4ade80;
+  --red:#f87171;
+  --yellow:#facc15;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial;
+  background:radial-gradient(circle at top,#020617 0%,#000 70%);
+  color:var(--text);
+}
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:48px 28px;
+}
+h1{font-size:2.8rem;margin-bottom:.4rem;}
+h2{margin-top:3.5rem;font-size:2rem;border-bottom:1px solid var(--border);padding-bottom:.5rem;}
+h3{margin-top:1.5rem;font-size:1.3rem;}
+p{margin:.7rem 0;color:var(--text);}
+.panel{
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:24px;
+  margin:26px 0;
+  background:linear-gradient(180deg,#020617,#000);
+}
+.apex{
+  border-left:4px solid var(--green);
+  background:linear-gradient(90deg,#052e16,transparent);
+}
+.highlight{
+  border-left:4px solid var(--accent);
+  padding:18px;
+  border-radius:12px;
+  background:linear-gradient(90deg,#0c4a6e,transparent);
+}
+button{
+  background:#020617;
+  border:1px solid var(--border);
+  color:var(--accent);
+  padding:10px 18px;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:.95rem;
+}
+button:hover{border-color:var(--accent);}
+.toggle{
+  display:flex;gap:10px;margin-top:20px;
+}
+.toggle button.active{
+  background:#0c4a6e;
+  color:#e5e7eb;
+}
+svg{width:100%;margin:30px 0;}
+.node{transition:all .4s ease;}
+.active{stroke:var(--accent);stroke-width:3;}
+.dim{opacity:.25;}
+.bad{stroke:var(--red);stroke-width:3;}
+.good{stroke:var(--green);stroke-width:3;}
+.footer{
+  margin-top:80px;
+  border-top:1px solid var(--border);
+  padding-top:26px;
+  color:var(--muted);
+}
+.code{
+  font-family:monospace;
+  color:var(--yellow);
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>Cosmos × Apex</h1>
+<p><strong>An outcome-feedback system for ambitious college students.</strong></p>
+
+<div class="highlight">
+<strong>One-line:</strong> Cosmos tells students whether their effort will actually lead to internships or jobs — and corrects it weekly when it won’t.
+</div>
+
+<!-- VIEW TOGGLE -->
+<div class="toggle">
+<button id="ycBtn" class="active" onclick="setView('yc')">YC View</button>
+<button id="techBtn" onclick="setView('tech')">Builder / AI View</button>
+</div>
+
+<!-- YC VIEW -->
+<div id="ycView">
+<div class="panel">
+<h3>The Problem</h3>
+<p>
+Students work extremely hard — courses, projects, planning — but get feedback only at the end: rejection.
+</p>
+<p>
+By then, it’s too late to correct direction.
+</p>
+</div>
+
+<div class="panel">
+<h3>What Cosmos Does</h3>
+<ul>
+<li>Makes effort visible</li>
+<li>Checks if it aligns with internships / jobs</li>
+<li>Kills wasted effort</li>
+<li>Redirects focus weekly</li>
+</ul>
+</div>
+</div>
+
+<!-- TECH VIEW -->
+<div id="techView" style="display:none;">
+<div class="panel">
+<h3>System Abstraction</h3>
+<p>
+Cosmos models a student as a <span class="code">closed-loop control system</span>.
+</p>
+<ul>
+<li>Effort signals (input)</li>
+<li>Outcome target (reference)</li>
+<li>Evaluation engine</li>
+<li>Weekly intervention</li>
+</ul>
+</div>
+</div>
+
+<!-- APEX -->
+<h2>Apex — The Innovation Source</h2>
+
+<div class="panel apex">
+<p>
+Apex is a real Excel-based system that manually did what Cosmos now automates:
+</p>
+<ul>
+<li>Tracked effort by <strong>type</strong>, not tasks</li>
+<li>Reviewed outcomes weekly</li>
+<li>Detected repeated failure patterns</li>
+<li>Removed low-ROI effort aggressively</li>
+</ul>
+<p>
+<strong>Cosmos is Apex at scale.</strong>
+</p>
+</div>
+
+<!-- INTERACTIVE LOOP -->
+<h2>Experience the Cosmos Loop</h2>
+
+<svg viewBox="0 0 900 260">
+  <rect id="outcome" class="node" x="360" y="20" width="180" height="60" rx="14"
+        fill="#020617" stroke="#1e293b"/>
+  <text x="450" y="55" text-anchor="middle" fill="#38bdf8">Target Outcome</text>
+
+  <rect id="effort" class="node" x="60" y="120" width="200" height="60" rx="14"
+        fill="#020617" stroke="#1e293b"/>
+  <text x="160" y="155" text-anchor="middle" fill="#e5e7eb">Effort</text>
+
+  <rect id="eval" class="node" x="320" y="120" width="260" height="60" rx="14"
+        fill="#020617" stroke="#1e293b"/>
+  <text x="450" y="155" text-anchor="middle" fill="#e5e7eb">Evaluation</text>
+
+  <rect id="fix" class="node" x="620" y="120" width="220" height="60" rx="14"
+        fill="#020617" stroke="#1e293b"/>
+  <text x="730" y="155" text-anchor="middle" fill="#e5e7eb">Correction</text>
+</svg>
+
+<div class="panel">
+<p id="stepText"></p>
+<button onclick="next()">Next step</button>
+</div>
+
+<!-- REAL EXAMPLE -->
+<h2>Real Example (Consulting / Data Internship)</h2>
+
+<div class="panel">
+<p><strong>Week 1 Effort Breakdown</strong></p>
+<ul>
+<li>70% Learning ❌</li>
+<li>20% Planning ❌</li>
+<li>10% Proof ❌</li>
+</ul>
+<p style="color:var(--red);">
+Cosmos verdict: effort is busy, not convertible.
+</p>
+</div>
+
+<div class="panel">
+<p><strong>Cosmos Intervention</strong></p>
+<ul>
+<li>Stop new courses</li>
+<li>Build 1 case / data project</li>
+<li>Publish proof</li>
+<li>Rewrite resume bullet</li>
+</ul>
+</div>
+
+<div class="panel">
+<p><strong>Week 3 Outcome</strong></p>
+<ul>
+<li>Public project ✅</li>
+<li>Resume proof ✅</li>
+<li>Clarity restored ✅</li>
+</ul>
+</div>
+
+<div class="highlight">
+This logic already worked manually in Apex. Cosmos automates it for thousands.
+</div>
+
+<div class="footer">
+<p>
+Cosmos is not a planner, chatbot, or motivation app.<br/>
+It is a correction engine for ambitious effort.
+</p>
+</div>
+
+</div>
+
+<script>
+/* View toggle */
+function setView(view){
+  document.getElementById("ycView").style.display=view==="yc"?"block":"none";
+  document.getElementById("techView").style.display=view==="tech"?"block":"none";
+  document.getElementById("ycBtn").classList.toggle("active",view==="yc");
+  document.getElementById("techBtn").classList.toggle("active",view==="tech");
+}
+
+/* Interactive loop */
+const steps=[
+  {text:"Step 1: Student defines a target outcome (internship / job).",node:"outcome",cls:"good"},
+  {text:"Step 2: Cosmos observes how effort is actually spent.",node:"effort",cls:"good"},
+  {text:"Step 3: Evaluation checks alignment with outcomes.",node:"eval",cls:"good"},
+  {text:"Step 4: Misalignment detected — effort won’t convert.",node:"eval",cls:"bad"},
+  {text:"Step 5: Cosmos removes low-ROI effort and redirects focus.",node:"fix",cls:"good"},
+  {text:"Result: Next week starts with corrected direction.",node:null}
+];
+let i=0;
+function reset(){
+  document.querySelectorAll(".node").forEach(n=>{
+    n.className="node";
+  });
+}
+function next(){
+  reset();
+  const s=steps[i];
+  document.getElementById("stepText").textContent=s.text;
+  if(s.node){
+    const el=document.getElementById(s.node);
+    el.classList.add("active");
+    if(s.cls) el.classList.add(s.cls);
+    document.querySelectorAll(".node").forEach(n=>{
+      if(n!==el) n.classList.add("dim");
+    });
+  }
+  i=(i+1)%steps.length;
+}
+next();
+</script>
+
+</body>
+</html>

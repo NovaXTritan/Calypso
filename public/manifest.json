@@ -1,0 +1,16 @@
+{
+  "name": "PeerLearn \u2014 Cosmos",
+  "short_name": "Cosmos",
+  "start_url": "/cosmos/",
+  "scope": "/cosmos/",
+  "display": "standalone",
+  "background_color": "#0b0e16",
+  "theme_color": "#0b0e16",
+  "icons": [
+    {
+      "src": "/cosmos/favicon.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml"
+    }
+  ]
+}
