@@ -4,8 +4,18 @@ import BlackHoleCanvas from '../components/BlackHoleCanvas'
 import Card from '../components/Card'
 import Magnetic from '../components/Magnetic'
 import GitHubHeatmap from '../components/GitHubHeatmap'
+import LandingPage from '../components/LandingPage'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Home(){
+  const { currentUser } = useAuth()
+
+  // Show landing page for non-authenticated visitors
+  if (!currentUser) {
+    return <LandingPage />
+  }
+
+  // Authenticated users see the dashboard
   const { scrollYProgress } = useScroll()
   const intensity = useTransform(scrollYProgress, [0, 0.25, 1], [1.0, 1.35, 1.6])
   const heroY = useTransform(scrollYProgress, [0, 0.25], [0, -30])

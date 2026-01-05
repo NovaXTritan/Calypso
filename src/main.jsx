@@ -78,8 +78,10 @@ function AppContent() {
               <Route path="/signup" element={<AnimatedPage><Signup /></AnimatedPage>} />
               <Route path="/constitution" element={<AnimatedPage><Constitution /></AnimatedPage>} />
 
+              {/* Home route - public (handles auth check internally) */}
+              <Route path="/" element={<AnimatedPage><Home /></AnimatedPage>} />
+
               {/* Protected routes */}
-              <Route path="/" element={<ProtectedRoute><AnimatedPage><Home /></AnimatedPage></ProtectedRoute>} />
               <Route path="/pods" element={<ProtectedRoute><AnimatedPage><Pods /></AnimatedPage></ProtectedRoute>} />
               <Route path="/pods/:slug" element={<ProtectedRoute><AnimatedPage><PodForum /></AnimatedPage></ProtectedRoute>} />
               <Route path="/matches" element={<ProtectedRoute><AnimatedPage><Matches /></AnimatedPage></ProtectedRoute>} />
