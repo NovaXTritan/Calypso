@@ -1,17 +1,19 @@
 import React, { Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import './styles.css'
-import { AuthProvider } from './contexts/AuthContext'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import NavBar from './components/NavBar'
 import Footer from './components/Footer'
+import BottomNav from './components/BottomNav'
 import CursorRing from './components/CursorRing'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ErrorBoundary from './components/ErrorBoundary'
-import toast from 'react-hot-toast'
+import { Toaster } from 'react-hot-toast'
 
 
 // Lazy loaded pages
@@ -23,36 +25,108 @@ const Events = lazy(() => import('./pages/Events'))
 const Analytics = lazy(() => import('./pages/Analytics'))
 const Profile = lazy(() => import('./pages/Profile'))
 const Settings = lazy(() => import('./pages/Settings'))
-const Constitution = lazy(() => import('./pages/Constitution'))  // ← ADDED
+const Constitution = lazy(() => import('./pages/Constitution'))
 
-function App(){
+// Page transition variants
+const pageVariants = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 }
+}
+
+// Loading spinner component
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full border-2 border-brand-500/20 border-t-brand-500 animate-spin" />
+      </div>
+    </div>
+  )
+}
+
+// Animated page wrapper
+function AnimatedPage({ children }) {
+  return (
+    <motion.div
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+function AppContent() {
+  const location = useLocation()
+  const { currentUser } = useAuth()
+
   return (
     <div className="min-h-screen flex flex-col grain">
       <CursorRing />
       <NavBar />
-      <main id="content" className="flex-1">
-        <Suspense fallback={<div className="p-8 text-zinc-400">Loading…</div>}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/constitution" element={<Constitution />} />  {/* ← ADDED - Public page */}
-            
-            {/* Protected routes */}
-            <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-            <Route path="/pods" element={<ProtectedRoute><Pods /></ProtectedRoute>} />
-            <Route path="/pods/:slug" element={<ProtectedRoute><PodForum /></ProtectedRoute>} />
-            <Route path="/matches" element={<ProtectedRoute><Matches /></ProtectedRoute>} />
-            <Route path="/journal" element={<ProtectedRoute><Journal /></ProtectedRoute>} />
-            <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
-            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-          </Routes>
-        </Suspense>
+      <main id="content" className={`flex-1 ${currentUser ? 'pb-20 md:pb-0' : ''}`}>
+        <AnimatePresence mode="wait">
+          <Suspense fallback={<LoadingSpinner />}>
+            <Routes location={location} key={location.pathname}>
+              {/* Public routes */}
+              <Route path="/login" element={<AnimatedPage><Login /></AnimatedPage>} />
+              <Route path="/signup" element={<AnimatedPage><Signup /></AnimatedPage>} />
+              <Route path="/constitution" element={<AnimatedPage><Constitution /></AnimatedPage>} />
+
+              {/* Protected routes */}
+              <Route path="/" element={<ProtectedRoute><AnimatedPage><Home /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/pods" element={<ProtectedRoute><AnimatedPage><Pods /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/pods/:slug" element={<ProtectedRoute><AnimatedPage><PodForum /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/matches" element={<ProtectedRoute><AnimatedPage><Matches /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/journal" element={<ProtectedRoute><AnimatedPage><Journal /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/events" element={<ProtectedRoute><AnimatedPage><Events /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/analytics" element={<ProtectedRoute><AnimatedPage><Analytics /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><AnimatedPage><Profile /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><AnimatedPage><Settings /></AnimatedPage></ProtectedRoute>} />
+            </Routes>
+          </Suspense>
+        </AnimatePresence>
       </main>
       <Footer />
+      {currentUser && <BottomNav />}
     </div>
+  )
+}
+
+function App(){
+  return (
+    <>
+      <AppContent />
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#1a2340',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+            padding: '12px 16px',
+          },
+          success: {
+            iconTheme: {
+              primary: '#667dff',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+    </>
   )
 }
 

@@ -2,21 +2,48 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <title>PeerLearn — Cosmos</title>
     <meta name="description" content="Turn intent into progress — join pods, ship tiny proofs, grow together." />
     <meta name="theme-color" content="#0b0e16" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cosmos" />
+    <link rel="apple-touch-startup-image" href="splash.png" />
+
+    <!-- SEO -->
     <link rel="canonical" href="https://novaxtritan.github.io/cosmos/" />
     <meta property="og:title" content="PeerLearn — Cosmos" />
     <meta property="og:description" content="Pods, micro-proofs, momentum — in a cosmos-themed space." />
+    <meta name="og:site_name" content="Cosmos" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://novaxtritan.github.io/cosmos/og.png" />
-    <meta name="twitter:card" content="summary_large_image">
-    <style>body{font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}</style>
-    <script type="module" crossorigin src="/assets/index-D4SRrvyr.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-nwvAVtMR.css">
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Mobile optimizations -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <style>
+      body{font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+      /* Safe area padding for notched devices */
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sar: env(safe-area-inset-right);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
+      }
+    </style>
+    <script type="module" crossorigin src="/assets/index-CB_rz54d.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CbMWJZE6.css">
   </head>
   <body class="bg-black text-white">
     <a class="sr-only focus:not-sr-only focus:absolute focus:p-3 focus:bg-white/10" href="#content">Skip to content</a>

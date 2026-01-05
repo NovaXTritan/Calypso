@@ -60,7 +60,7 @@ export default function Home(){
         </div>
 
         {/* Cards Row 1 */}
-        <div className="mt-12 grid lg:grid-cols-4 gap-6">
+        <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <Magnetic className="block">
             <Card title="Retrieval Check (1 min)">
               <ul className="space-y-2 text-sm text-zinc-300">
@@ -98,7 +98,7 @@ export default function Home(){
         </div>
 
         {/* Cards Row 2 */}
-        <div className="mt-6 grid lg:grid-cols-4 gap-6">
+        <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <Magnetic className="block">
             <Card title="Proof & Feedback">
               <p className="text-sm text-zinc-300">Earn likes, warm-intros, critiques.</p>

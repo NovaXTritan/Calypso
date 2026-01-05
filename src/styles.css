@@ -2,7 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
+:root {
+  color-scheme: dark;
+  /* Safe area insets for notched devices */
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
 
 /* Layered galaxy background with vignette */
 body {
@@ -10,6 +17,15 @@ body {
     radial-gradient(1200px 800px at 75% 40%, rgba(255,160,80,0.10), transparent 60%),
     radial-gradient(900px 700px at 20% 70%, rgba(52,40,120,0.30), transparent 60%),
     linear-gradient(180deg, #0b0e16, #0b0e16 30%, #101727 100%);
+  /* Prevent overscroll bounce on iOS */
+  overscroll-behavior: none;
+  /* Smooth scrolling */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent pull-to-refresh on mobile (handled by custom implementation) */
+html, body {
+  overscroll-behavior-y: contain;
 }
 
 /* Film grain overlay */
@@ -26,6 +42,83 @@ body {
 /* Utilities */
 .glass { @apply bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md shadow-glass; }
 .pill { @apply px-3 py-1 rounded-full bg-white/10 border border-white/10 text-sm; }
-.btn-primary { @apply inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold bg-brand-600 hover:bg-brand-500 transition shadow-neon; }
-.btn-ghost { @apply inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold bg-white/10 hover:bg-white/15 border border-white/10; }
+.btn-primary { @apply inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold bg-brand-600 hover:bg-brand-500 transition shadow-neon active:scale-95; }
+.btn-ghost { @apply inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold bg-white/10 hover:bg-white/15 border border-white/10 active:scale-95; }
 .focus-out { @apply focus:outline-none focus:ring-2 focus:ring-brand-500/70 focus:ring-offset-2 focus:ring-offset-black; }
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets on mobile */
+  .btn-primary, .btn-ghost {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Remove hover states on touch devices */
+  .btn-primary:hover, .btn-ghost:hover {
+    @apply bg-brand-600;
+  }
+  .btn-ghost:hover {
+    @apply bg-white/10;
+  }
+}
+
+/* Safe area padding for footer */
+.safe-bottom {
+  padding-bottom: max(1rem, var(--sab));
+}
+
+/* Smooth page transitions */
+.page-transition {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Hide scrollbar but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar for desktop */
+@media (hover: hover) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.15);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.25);
+  }
+}
