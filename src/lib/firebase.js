@@ -1,10 +1,3 @@
-console.log('=== FIREBASE CONFIG DEBUG ===');
-console.log('API Key:', import.meta.env.VITE_FIREBASE_API_KEY);
-console.log('Auth Domain:', import.meta.env.VITE_FIREBASE_AUTH_DOMAIN);
-console.log('Project ID:', import.meta.env.VITE_FIREBASE_PROJECT_ID);
-console.log('All env vars:', import.meta.env);
-console.log('=== END DEBUG ===');
-
 import { initializeApp, getApps } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
