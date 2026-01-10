@@ -29,6 +29,14 @@ export default function Settings(){
   const [publicProfile, setPublicProfile] = useState(currentUser?.preferences?.publicProfile ?? true)
   const [savingPreferences, setSavingPreferences] = useState(false)
 
+  // Privacy Settings
+  const privacySettings = currentUser?.privacySettings || {}
+  const [hideFromMatching, setHideFromMatching] = useState(privacySettings.hideFromMatching ?? false)
+  const [hideFromLeaderboards, setHideFromLeaderboards] = useState(privacySettings.hideFromLeaderboards ?? false)
+  const [hideActivityStatus, setHideActivityStatus] = useState(privacySettings.hideActivityStatus ?? false)
+  const [defaultProofVisibility, setDefaultProofVisibility] = useState(privacySettings.defaultProofVisibility ?? 'public')
+  const [savingPrivacy, setSavingPrivacy] = useState(false)
+
   // Push Notifications
   const [pushSupported, setPushSupported] = useState(false)
   const [pushPermission, setPushPermission] = useState('default')
@@ -124,6 +132,26 @@ export default function Settings(){
       toast.error('Failed to save preferences')
     } finally {
       setSavingPreferences(false)
+    }
+  }
+
+  async function handlePrivacySave() {
+    setSavingPrivacy(true)
+    try {
+      await updateUserProfile({
+        privacySettings: {
+          hideFromMatching,
+          hideFromLeaderboards,
+          hideActivityStatus,
+          defaultProofVisibility
+        }
+      })
+      toast.success('Privacy settings saved! 🔒')
+    } catch (error) {
+      trackError(error, { action: 'savePrivacySettings', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
+      toast.error('Failed to save privacy settings')
+    } finally {
+      setSavingPrivacy(false)
     }
   }
 
@@ -241,6 +269,7 @@ export default function Settings(){
           </h3>
 
           <div className="space-y-4">
+            {/* Public Profile */}
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-medium">Public Profile</div>
@@ -257,7 +286,96 @@ export default function Settings(){
                 <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-6 transition-all"></div>
               </label>
             </div>
+
+            {/* Hide from Partner Matching */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Hide from Partner Matching</div>
+                <div className="text-sm text-zinc-400">Don't show me as a potential accountability partner</div>
+              </div>
+              <label className="relative inline-block w-12 h-6">
+                <input
+                  type="checkbox"
+                  checked={hideFromMatching}
+                  onChange={(e) => setHideFromMatching(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-full h-full bg-white/10 peer-checked:bg-brand-400 rounded-full peer transition-all cursor-pointer"></div>
+                <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-6 transition-all"></div>
+              </label>
+            </div>
+
+            {/* Hide from Leaderboards */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Hide from Leaderboards</div>
+                <div className="text-sm text-zinc-400">Don't show my name on public leaderboards</div>
+              </div>
+              <label className="relative inline-block w-12 h-6">
+                <input
+                  type="checkbox"
+                  checked={hideFromLeaderboards}
+                  onChange={(e) => setHideFromLeaderboards(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-full h-full bg-white/10 peer-checked:bg-brand-400 rounded-full peer transition-all cursor-pointer"></div>
+                <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-6 transition-all"></div>
+              </label>
+            </div>
+
+            {/* Hide Activity Status */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-medium">Hide Activity Status</div>
+                <div className="text-sm text-zinc-400">Don't show when I'm online in co-working rooms</div>
+              </div>
+              <label className="relative inline-block w-12 h-6">
+                <input
+                  type="checkbox"
+                  checked={hideActivityStatus}
+                  onChange={(e) => setHideActivityStatus(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-full h-full bg-white/10 peer-checked:bg-brand-400 rounded-full peer transition-all cursor-pointer"></div>
+                <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-6 transition-all"></div>
+              </label>
+            </div>
+
+            {/* Default Proof Visibility */}
+            <div>
+              <div className="font-medium mb-2">Default Proof Visibility</div>
+              <div className="text-sm text-zinc-400 mb-3">Choose who can see your proofs by default</div>
+              <div className="flex gap-2">
+                {[
+                  { value: 'public', label: 'Public', desc: 'Everyone' },
+                  { value: 'pod', label: 'Pod Only', desc: 'Pod members' },
+                  { value: 'private', label: 'Private', desc: 'Only you' }
+                ].map(option => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setDefaultProofVisibility(option.value)}
+                    className={`flex-1 p-3 rounded-lg text-center transition-all ${
+                      defaultProofVisibility === option.value
+                        ? 'bg-brand-500/20 border border-brand-500/50 text-brand-400'
+                        : 'bg-white/5 border border-white/10 text-zinc-400 hover:border-white/20'
+                    }`}
+                  >
+                    <div className="font-medium text-sm">{option.label}</div>
+                    <div className="text-xs mt-0.5 opacity-70">{option.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
+
+          <button
+            onClick={handlePrivacySave}
+            disabled={savingPrivacy}
+            className="mt-6 px-4 py-2 btn-primary disabled:opacity-50"
+          >
+            {savingPrivacy ? 'Saving...' : 'Save Privacy Settings'}
+          </button>
         </div>
 
         {/* Notification Settings */}

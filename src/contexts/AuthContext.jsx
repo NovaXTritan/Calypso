@@ -7,7 +7,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   updateEmail,
-  updatePassword
+  updatePassword,
+  sendPasswordResetEmail
 } from 'firebase/auth'
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore'
 import { useForum } from '../storeForum'
@@ -74,6 +75,11 @@ export function AuthProvider({ children }) {
   // Update user password
   function changePassword(newPassword) {
     return updatePassword(auth.currentUser, newPassword)
+  }
+
+  // Reset password via email
+  function resetPassword(email) {
+    return sendPasswordResetEmail(auth, email)
   }
 
   // Update user profile in Firestore
@@ -144,6 +150,7 @@ export function AuthProvider({ children }) {
     logout,
     changeEmail,
     changePassword,
+    resetPassword,
     updateUserProfile,
     loading
   }

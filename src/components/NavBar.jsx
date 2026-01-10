@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, memo } from 'react'
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom'
-import { Rocket, LogOut, User, Scroll, Menu, X, Home, Users, Heart, BookOpen, Calendar, BarChart3, Settings } from 'lucide-react'
+import { Rocket, LogOut, User, Scroll, Menu, X, Home, Users, Heart, BookOpen, Calendar, BarChart3, Settings, Trophy } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
+import NotificationCenter from './NotificationCenter'
 
 const navItems = [
   { to: '/', label: 'Home', icon: Home },
@@ -12,11 +13,12 @@ const navItems = [
   { to: '/journal', label: 'Journal', icon: BookOpen },
   { to: '/events', label: 'Events', icon: Calendar },
   { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/leaderboard', label: 'Leaderboard', icon: Trophy },
   { to: '/profile', label: 'Profile', icon: User },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
-const Item = ({to, children, onClick}) => (
+const Item = memo(({to, children, onClick}) => (
   <NavLink
     to={to}
     onClick={onClick}
@@ -24,9 +26,9 @@ const Item = ({to, children, onClick}) => (
   >
     {children}
   </NavLink>
-)
+))
 
-const MobileNavItem = ({to, label, icon: Icon, onClick}) => (
+const MobileNavItem = memo(({to, label, icon: Icon, onClick}) => (
   <NavLink
     to={to}
     onClick={onClick}
@@ -35,7 +37,7 @@ const MobileNavItem = ({to, label, icon: Icon, onClick}) => (
     <Icon size={20} />
     <span className="font-medium">{label}</span>
   </NavLink>
-)
+))
 
 export default function NavBar(){
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -58,7 +60,7 @@ export default function NavBar(){
     return () => { document.body.style.overflow = '' }
   }, [mobileMenuOpen])
 
-  async function handleLogout() {
+  const handleLogout = useCallback(async () => {
     try {
       await logout()
       setMobileMenuOpen(false)
@@ -66,7 +68,7 @@ export default function NavBar(){
     } catch (error) {
       trackError(error, { action: 'logout' }, 'error', ErrorCategory.AUTH)
     }
-  }
+  }, [logout, navigate])
 
   return (
     <>
@@ -98,6 +100,8 @@ export default function NavBar(){
           <div className="ml-auto flex items-center gap-3">
             {currentUser ? (
               <>
+                {/* Notification Center */}
+                <NotificationCenter />
                 <Link to="/profile" className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition">
                   <User size={16} />
                   <span className="text-sm">{currentUser.displayName || 'Profile'}</span>

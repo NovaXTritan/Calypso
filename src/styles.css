@@ -104,6 +104,287 @@ html, body {
   display: none;
 }
 
+/* Custom range slider styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667dff 0%, #8b5cf6 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  margin-top: -6px;
+  box-shadow: 0 2px 8px rgba(102, 125, 255, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 12px rgba(102, 125, 255, 0.6);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667dff 0%, #8b5cf6 100%);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(102, 125, 255, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 12px rgba(102, 125, 255, 0.6);
+}
+
+/* ========== Landing Page Animations ========== */
+
+/* Floating animation for orbs */
+@keyframes float-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -40px) scale(1.05); }
+  50% { transform: translate(-20px, -20px) scale(0.95); }
+  75% { transform: translate(40px, -60px) scale(1.02); }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-40px, -30px) scale(1.03); }
+  66% { transform: translate(20px, -50px) scale(0.97); }
+}
+
+@keyframes float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(50px, -20px) scale(0.98); }
+  40% { transform: translate(-30px, -60px) scale(1.04); }
+  60% { transform: translate(20px, -40px) scale(1); }
+  80% { transform: translate(-20px, -30px) scale(1.02); }
+}
+
+/* Soft pulse for buttons */
+@keyframes pulse-soft {
+  0%, 100% { box-shadow: 0 0 20px rgba(102,125,255,0.2), 0 0 40px rgba(102,125,255,0.1); }
+  50% { box-shadow: 0 0 30px rgba(102,125,255,0.4), 0 0 60px rgba(102,125,255,0.2); }
+}
+
+/* Gradient shift for backgrounds */
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Subtle glow pulse */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* Orb styles */
+.floating-orb {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(60px);
+  opacity: 0.5;
+  will-change: transform;
+}
+
+.floating-orb-1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(102,125,255,0.4) 0%, transparent 70%);
+  top: 10%;
+  right: -100px;
+  animation: float-1 25s ease-in-out infinite;
+}
+
+.floating-orb-2 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255,179,107,0.35) 0%, transparent 70%);
+  top: 50%;
+  left: -80px;
+  animation: float-2 30s ease-in-out infinite;
+}
+
+.floating-orb-3 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 70%);
+  bottom: 10%;
+  right: 10%;
+  animation: float-3 35s ease-in-out infinite;
+}
+
+.floating-orb-4 {
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, rgba(102,125,255,0.25) 0%, transparent 70%);
+  top: 70%;
+  left: 30%;
+  animation: float-1 40s ease-in-out infinite reverse;
+}
+
+/* Glow card effect */
+.glow-card {
+  @apply bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md shadow-glass relative overflow-hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glow-card::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(102,125,255,0.4), rgba(255,179,107,0.3), rgba(139,92,246,0.3));
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  z-index: -1;
+  filter: blur(15px);
+}
+
+.glow-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(255,255,255,0.2);
+}
+
+/* Reveal animation */
+.reveal-up {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal-up.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reveal-scale.revealed {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Animated gradient text */
+.gradient-text-animated {
+  background: linear-gradient(135deg, #8fa6ff 0%, #ffb36b 50%, #8fa6ff 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* Section divider gradient */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
+}
+
+/* Button breathing animation */
+.btn-breathe {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .floating-orb {
+    filter: blur(40px);
+    opacity: 0.35;
+  }
+
+  .floating-orb-3,
+  .floating-orb-4 {
+    display: none;
+  }
+
+  .floating-orb-1 {
+    width: 250px;
+    height: 250px;
+  }
+
+  .floating-orb-2 {
+    width: 200px;
+    height: 200px;
+  }
+
+  .glow-card::before {
+    filter: blur(8px);
+  }
+
+  .reveal-up,
+  .reveal-scale {
+    transition-duration: 0.4s;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: hover) {
+  .glow-card:hover::before {
+    opacity: 1;
+  }
+}
+
+@media (hover: none) {
+  .glow-card:active::before {
+    opacity: 1;
+  }
+
+  .glow-card:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .floating-orb {
+    animation: none;
+  }
+
+  .reveal-up,
+  .reveal-scale {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .gradient-text-animated {
+    animation: none;
+  }
+
+  .btn-breathe {
+    animation: none;
+  }
+}
+
 /* Custom scrollbar for desktop */
 @media (hover: hover) {
   ::-webkit-scrollbar {
@@ -120,5 +401,139 @@ html, body {
   }
   ::-webkit-scrollbar-thumb:hover {
     background: rgba(255,255,255,0.25);
+  }
+}
+
+/* ========== Mobile Performance Utilities ========== */
+
+/* Touch-optimized tap targets */
+.tap-target {
+  position: relative;
+}
+.tap-target::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  bottom: -8px;
+  left: -8px;
+}
+
+/* Mobile-first card styles */
+.mobile-card {
+  @apply glass p-4 sm:p-6 touch-manipulation;
+}
+
+/* Optimized transition for GPU acceleration */
+.gpu-accelerated {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+/* Fast tap feedback for mobile */
+.tap-feedback {
+  @apply active:scale-[0.98] active:opacity-90 transition-transform duration-75;
+}
+
+/* Mobile-friendly spacing */
+.mobile-spacing {
+  @apply px-4 sm:px-6 py-3 sm:py-4;
+}
+
+/* Horizontal scroll container for mobile */
+.mobile-scroll-x {
+  @apply flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:overflow-visible sm:flex-wrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mobile-scroll-x::-webkit-scrollbar {
+  display: none;
+}
+.mobile-scroll-x > * {
+  @apply snap-start flex-shrink-0 sm:flex-shrink;
+}
+
+/* Mobile grid helpers */
+.mobile-grid-1 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
+}
+.mobile-grid-2 {
+  @apply grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4;
+}
+
+/* Loading skeleton optimized */
+.skeleton-mobile {
+  @apply bg-white/5 rounded-lg animate-pulse;
+}
+
+/* Text truncation utilities */
+.line-clamp-mobile {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Bottom sheet style modal for mobile */
+@media (max-width: 640px) {
+  .modal-mobile {
+    @apply fixed inset-x-0 bottom-0 top-auto rounded-t-3xl rounded-b-none max-h-[90vh] overflow-y-auto;
+    animation: slideUp 0.3s ease-out;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Sticky header for mobile */
+.sticky-header-mobile {
+  @apply sticky top-0 z-30 bg-night-900/80 backdrop-blur-xl border-b border-white/5;
+  padding-top: max(0.5rem, var(--sat));
+}
+
+/* Bottom navigation safe area */
+.bottom-nav-safe {
+  padding-bottom: max(1rem, var(--sab));
+}
+
+/* Performance: Disable animations on slow devices */
+@media (prefers-reduced-motion: reduce), (update: slow) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* Fix for iOS momentum scrolling */
+  .ios-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix for iOS input zoom */
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Landscape mode adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .hero-section {
+    min-height: auto;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
   }
 }

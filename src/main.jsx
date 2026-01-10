@@ -10,6 +10,7 @@ import NavBar from './components/NavBar'
 import Footer from './components/Footer'
 import BottomNav from './components/BottomNav'
 import CursorRing from './components/CursorRing'
+import StreakReminder from './components/StreakReminder'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -20,6 +21,8 @@ import { Toaster } from 'react-hot-toast'
 // Lazy loaded pages
 const Pods = lazy(() => import('./pages/Pods'))
 const PodForum = lazy(() => import('./pages/PodForum'))
+const NewThread = lazy(() => import('./pages/NewThread'))
+const ThreadView = lazy(() => import('./pages/ThreadView'))
 const Matches = lazy(() => import('./pages/Matches'))
 const Journal = lazy(() => import('./pages/Journal'))
 const Events = lazy(() => import('./pages/Events'))
@@ -28,6 +31,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Constitution = lazy(() => import('./pages/Constitution'))
 const Chat = lazy(() => import('./pages/Chat'))
+const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 
 // Page transition variants
 const pageVariants = {
@@ -70,6 +74,7 @@ function AppContent() {
     <div className="min-h-screen flex flex-col grain">
       <CursorRing />
       <NavBar />
+      {currentUser && <StreakReminder />}
       <main id="content" className={`flex-1 ${currentUser ? 'pb-20 md:pb-0' : ''}`}>
         <AnimatePresence mode="wait">
           <Suspense fallback={<LoadingSpinner />}>
@@ -85,6 +90,9 @@ function AppContent() {
               {/* Protected routes */}
               <Route path="/pods" element={<ProtectedRoute><AnimatedPage><Pods /></AnimatedPage></ProtectedRoute>} />
               <Route path="/pods/:slug" element={<ProtectedRoute><AnimatedPage><PodForum /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/pods/:slug/new-thread" element={<ProtectedRoute><AnimatedPage><NewThread /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/pods/:slug/thread/:threadId" element={<ProtectedRoute><AnimatedPage><ThreadView /></AnimatedPage></ProtectedRoute>} />
+              <Route path="/leaderboard" element={<ProtectedRoute><AnimatedPage><Leaderboard /></AnimatedPage></ProtectedRoute>} />
               <Route path="/matches" element={<ProtectedRoute><AnimatedPage><Matches /></AnimatedPage></ProtectedRoute>} />
               <Route path="/journal" element={<ProtectedRoute><AnimatedPage><Journal /></AnimatedPage></ProtectedRoute>} />
               <Route path="/events" element={<ProtectedRoute><AnimatedPage><Events /></AnimatedPage></ProtectedRoute>} />
@@ -139,7 +147,7 @@ createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <HelmetProvider>
       <ErrorBoundary>
-        <BrowserRouter basename="/Calypso">
+        <BrowserRouter>
           <AuthProvider>
             <App />
           </AuthProvider>

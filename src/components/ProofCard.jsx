@@ -28,8 +28,29 @@ import {
   Pencil,
   Trash2,
   X,
-  Check
+  Check,
+  PartyPopper,
+  Lightbulb,
+  ThumbsUp,
+  BadgeCheck,
+  Shield,
+  ShieldCheck
 } from 'lucide-react'
+import {
+  verifyProof,
+  unverifyProof,
+  getVerificationLevel,
+  canVerify,
+  isVerifiedByUser
+} from '../lib/verification'
+
+// Reaction types with their icons and colors
+const REACTION_TYPES = {
+  like: { icon: Heart, label: 'Like', color: 'pink', activeColor: 'bg-pink-500/20 text-pink-400' },
+  celebrate: { icon: PartyPopper, label: 'Celebrate', color: 'yellow', activeColor: 'bg-yellow-500/20 text-yellow-400' },
+  insightful: { icon: Lightbulb, label: 'Insightful', color: 'blue', activeColor: 'bg-blue-500/20 text-blue-400' },
+  helpful: { icon: ThumbsUp, label: 'Helpful', color: 'green', activeColor: 'bg-green-500/20 text-green-400' }
+}
 
 // ============================================
 // SAFE UTILITIES - Won't throw errors
@@ -175,7 +196,10 @@ const isValidUrl = (string) => {
 // COMPONENT
 // ============================================
 
-function ProofCard({ proof, currentUserId, showPodBadge = false }) {
+// Moderator email
+const MODERATOR_EMAIL = 'divyanshukumar0163@gmail.com'
+
+function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, showPodBadge = false }) {
   // Defensive: ensure proof exists
   if (!proof || typeof proof !== 'object') {
     return null // Don't render anything if proof is invalid
@@ -183,9 +207,10 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
 
   const [showComments, setShowComments] = useState(false)
   const [newComment, setNewComment] = useState('')
-  const [isLiking, setIsLiking] = useState(false)
+  const [isReacting, setIsReacting] = useState(false)
   const [isCommenting, setIsCommenting] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showReactionPicker, setShowReactionPicker] = useState(false)
   const [isBookmarked, setIsBookmarked] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [actionError, setActionError] = useState(null)
@@ -193,6 +218,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
   const [editContent, setEditContent] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isVerifying, setIsVerifying] = useState(false)
 
   // Safe data extraction with fallbacks
   const proofId = safeString(proof.id)
@@ -209,8 +235,31 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
   const createdAt = safeNumber(proof.createdAt, 0)
   const likes = safeArray(proof.likes)
   const comments = safeArray(proof.comments)
+  // New reactions system - object with arrays for each type
+  const reactions = proof.reactions || {}
+  const likeReactions = safeArray(reactions.like || proof.likes) // Fallback to old likes
+  const celebrateReactions = safeArray(reactions.celebrate)
+  const insightfulReactions = safeArray(reactions.insightful)
+  const helpfulReactions = safeArray(reactions.helpful)
 
-  const isLiked = safeIncludes(likes, currentUserId)
+  // Verification data
+  const verifications = safeArray(proof.verifications)
+  const verificationCount = safeNumber(proof.verificationCount, verifications.length)
+  const verificationLevel = getVerificationLevel(verificationCount)
+  const userHasVerified = isVerifiedByUser(proof, currentUserId)
+  const userCanVerify = canVerify(proof, currentUserId)
+
+  // Check user's reactions
+  const userReactions = {
+    like: safeIncludes(likeReactions, currentUserId),
+    celebrate: safeIncludes(celebrateReactions, currentUserId),
+    insightful: safeIncludes(insightfulReactions, currentUserId),
+    helpful: safeIncludes(helpfulReactions, currentUserId)
+  }
+
+  // Get total reaction count
+  const totalReactions = likeReactions.length + celebrateReactions.length + insightfulReactions.length + helpfulReactions.length
+  const isLiked = userReactions.like
   const likeCount = safeLength(likes)
   const commentCount = safeLength(comments)
 
@@ -218,55 +267,64 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
   // SAFE EVENT HANDLERS
   // ============================================
 
-  const handleLike = useCallback(async () => {
-    if (isLiking) return
-    
+  // Generic reaction handler for all reaction types
+  const handleReaction = useCallback(async (reactionType) => {
+    if (isReacting) return
+
     if (!currentUserId) {
-      safeToast.error('Please sign in to like')
+      safeToast.error('Please sign in to react')
       return
     }
 
     if (!proofId) {
-      trackError('Cannot like: missing proof ID', { action: 'handleLike' }, 'warn', ErrorCategory.VALIDATION)
+      trackError('Cannot react: missing proof ID', { action: 'handleReaction' }, 'warn', ErrorCategory.VALIDATION)
       return
     }
 
-    setIsLiking(true)
+    setIsReacting(true)
     setActionError(null)
-    
+    setShowReactionPicker(false)
+
     try {
       const proofRef = doc(db, 'proofs', proofId)
-      
-      if (isLiked) {
+      const hasReacted = userReactions[reactionType]
+      const reactionField = `reactions.${reactionType}`
+
+      if (hasReacted) {
         await updateDoc(proofRef, {
-          likes: arrayRemove(currentUserId)
+          [reactionField]: arrayRemove(currentUserId)
         })
       } else {
         await updateDoc(proofRef, {
-          likes: arrayUnion(currentUserId)
+          [reactionField]: arrayUnion(currentUserId)
         })
-        
-        // Notify proof owner (fire and forget - don't let this fail the like)
+
+        // Notify proof owner (fire and forget)
         if (authorId && authorId !== currentUserId) {
+          const reactionLabel = REACTION_TYPES[reactionType]?.label || 'reacted to'
           addDoc(collection(db, 'notifications'), {
             userId: authorId,
-            type: 'like',
-            message: 'Someone liked your proof!',
+            type: 'reaction',
+            reactionType: reactionType,
+            message: `Someone ${reactionLabel.toLowerCase()}d your proof!`,
             proofId: proofId,
             fromUserId: currentUserId,
             read: false,
             createdAt: serverTimestamp()
-          }).catch(err => trackError(err, { action: 'likeNotification', proofId }, 'warn', ErrorCategory.FIRESTORE))
+          }).catch(err => trackError(err, { action: 'reactionNotification', proofId }, 'warn', ErrorCategory.FIRESTORE))
         }
       }
     } catch (error) {
-      trackError(error, { action: 'toggleLike', proofId }, 'error', ErrorCategory.FIRESTORE)
-      setActionError('Failed to like')
-      safeToast.error('Failed to like. Try again.')
+      trackError(error, { action: 'toggleReaction', proofId, reactionType }, 'error', ErrorCategory.FIRESTORE)
+      setActionError('Failed to react')
+      safeToast.error('Failed to react. Try again.')
     } finally {
-      setIsLiking(false)
+      setIsReacting(false)
     }
-  }, [isLiking, currentUserId, proofId, isLiked, authorId])
+  }, [isReacting, currentUserId, proofId, userReactions, authorId])
+
+  // Legacy handleLike for backwards compatibility
+  const handleLike = useCallback(() => handleReaction('like'), [handleReaction])
 
   const handleComment = useCallback(async (e) => {
     if (e && e.preventDefault) e.preventDefault()
@@ -294,7 +352,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
       const comment = {
         id: `comment_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
         authorId: currentUserId,
-        authorName: 'You', // Will be replaced by actual name from context
+        authorName: currentUserName || 'Anonymous',
         content: sanitizedComment,
         createdAt: Date.now()
       }
@@ -325,7 +383,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
     } finally {
       setIsCommenting(false)
     }
-  }, [newComment, isCommenting, currentUserId, proofId, authorId])
+  }, [newComment, isCommenting, currentUserId, currentUserName, proofId, authorId])
 
   const handleShare = useCallback(async () => {
     try {
@@ -454,7 +512,37 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
     }
   }, [proofId])
 
+  const handleVerification = useCallback(async () => {
+    if (isVerifying || !currentUserId) return
+
+    setIsVerifying(true)
+    setActionError(null)
+
+    try {
+      if (userHasVerified) {
+        const result = await unverifyProof(proofId, currentUserId)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to remove verification')
+        }
+      } else {
+        const result = await verifyProof(proofId, currentUserId, currentUserName)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to verify')
+        }
+        safeToast.success('Proof verified!')
+      }
+    } catch (error) {
+      trackError(error, { action: 'verification', proofId }, 'error', ErrorCategory.FIRESTORE)
+      setActionError(error.message || 'Verification failed')
+      safeToast.error(error.message || 'Verification failed')
+    } finally {
+      setIsVerifying(false)
+    }
+  }, [isVerifying, currentUserId, userHasVerified, proofId, currentUserName])
+
   const isAuthor = currentUserId && authorId && currentUserId === authorId
+  const isModerator = currentUserEmail === MODERATOR_EMAIL
+  const canModify = isAuthor || isModerator
 
   // ============================================
   // SAFE RENDER FUNCTIONS
@@ -622,6 +710,29 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
                 {streak}
               </span>
             )}
+
+            {/* Verification Badge */}
+            {verificationCount > 0 && (
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${
+                  verificationLevel.label === 'Trusted'
+                    ? 'bg-glow-500/20 text-glow-400'
+                    : verificationLevel.label === 'Verified'
+                      ? 'bg-green-500/20 text-green-400'
+                      : 'bg-blue-500/20 text-blue-400'
+                }`}
+                title={`${verificationCount} verifications`}
+              >
+                {verificationLevel.label === 'Trusted' ? (
+                  <ShieldCheck className="w-3 h-3" />
+                ) : verificationLevel.label === 'Verified' ? (
+                  <BadgeCheck className="w-3 h-3" />
+                ) : (
+                  <Shield className="w-3 h-3" />
+                )}
+                {verificationLevel.label}
+              </span>
+            )}
           </div>
           
           <div className="flex items-center gap-2 text-sm text-zinc-400">
@@ -658,21 +769,23 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
                 onClick={() => setShowMenu(false)}
               />
               <div className="absolute right-0 top-full mt-1 w-40 bg-zinc-800 border border-white/10 rounded-lg shadow-xl z-20 overflow-hidden">
-                {isAuthor && (
+                {canModify && (
                   <>
-                    <button
-                      onClick={handleEdit}
-                      className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      Edit
-                    </button>
+                    {isAuthor && (
+                      <button
+                        onClick={handleEdit}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+                      >
+                        <Pencil className="w-4 h-4" />
+                        Edit
+                      </button>
+                    )}
                     <button
                       onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }}
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Delete
+                      {isModerator && !isAuthor ? 'Delete (Mod)' : 'Delete'}
                     </button>
                     <div className="border-t border-white/10" />
                   </>
@@ -776,25 +889,88 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
         </div>
       )}
 
+      {/* Reaction Summary - Show all reactions if any */}
+      {totalReactions > 0 && (
+        <div className="flex items-center gap-2 pt-3 pb-2">
+          <div className="flex -space-x-1">
+            {likeReactions.length > 0 && (
+              <span className="w-6 h-6 rounded-full bg-pink-500/20 flex items-center justify-center">
+                <Heart className="w-3 h-3 text-pink-400" />
+              </span>
+            )}
+            {celebrateReactions.length > 0 && (
+              <span className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                <PartyPopper className="w-3 h-3 text-yellow-400" />
+              </span>
+            )}
+            {insightfulReactions.length > 0 && (
+              <span className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <Lightbulb className="w-3 h-3 text-blue-400" />
+              </span>
+            )}
+            {helpfulReactions.length > 0 && (
+              <span className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                <ThumbsUp className="w-3 h-3 text-green-400" />
+              </span>
+            )}
+          </div>
+          <span className="text-sm text-zinc-400">{totalReactions}</span>
+        </div>
+      )}
+
       {/* Interaction Bar */}
       <div className="flex items-center gap-1 pt-3 border-t border-white/10">
-        {/* Like */}
-        <button 
-          onClick={handleLike}
-          disabled={isLiking}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all disabled:opacity-50 ${
-            isLiked 
-              ? 'bg-pink-500/20 text-pink-400' 
-              : 'hover:bg-white/5 text-zinc-400 hover:text-pink-400'
-          }`}
-          aria-label={isLiked ? 'Unlike' : 'Like'}
-        >
-          <Heart className={`w-5 h-5 ${isLiked ? 'fill-current' : ''}`} />
-          {likeCount > 0 && <span className="text-sm font-medium">{likeCount}</span>}
-        </button>
+        {/* Reaction Button with Picker */}
+        <div className="relative">
+          <button
+            onClick={() => setShowReactionPicker(!showReactionPicker)}
+            onMouseEnter={() => setShowReactionPicker(true)}
+            disabled={isReacting}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all disabled:opacity-50 ${
+              Object.values(userReactions).some(v => v)
+                ? 'bg-pink-500/20 text-pink-400'
+                : 'hover:bg-white/5 text-zinc-400 hover:text-pink-400'
+            }`}
+            aria-label="React"
+          >
+            <Heart className={`w-5 h-5 ${userReactions.like ? 'fill-current' : ''}`} />
+            {totalReactions > 0 && <span className="text-sm font-medium">{totalReactions}</span>}
+          </button>
+
+          {/* Reaction Picker Popup */}
+          {showReactionPicker && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowReactionPicker(false)}
+                onMouseLeave={() => setShowReactionPicker(false)}
+              />
+              <div
+                className="absolute bottom-full left-0 mb-2 flex items-center gap-1 p-2 bg-zinc-800 border border-white/10 rounded-xl shadow-xl z-20"
+                onMouseLeave={() => setShowReactionPicker(false)}
+              >
+                {Object.entries(REACTION_TYPES).map(([type, { icon: Icon, label, activeColor }]) => {
+                  const isActive = userReactions[type]
+                  return (
+                    <button
+                      key={type}
+                      onClick={() => handleReaction(type)}
+                      className={`p-2 rounded-lg transition-all hover:scale-110 ${
+                        isActive ? activeColor : 'hover:bg-white/10'
+                      }`}
+                      title={label}
+                    >
+                      <Icon className={`w-5 h-5 ${isActive ? '' : 'text-zinc-400'}`} />
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
 
         {/* Comment */}
-        <button 
+        <button
           onClick={() => setShowComments(!showComments)}
           className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all ${
             showComments
@@ -808,7 +984,7 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
         </button>
 
         {/* Share */}
-        <button 
+        <button
           onClick={handleShare}
           className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-white/5 text-zinc-400 hover:text-glow-400 transition-all"
           aria-label="Share"
@@ -816,8 +992,28 @@ function ProofCard({ proof, currentUserId, showPodBadge = false }) {
           <Share2 className="w-5 h-5" />
         </button>
 
+        {/* Verify Button - only for non-authors */}
+        {!isAuthor && currentUserId && (
+          <button
+            onClick={handleVerification}
+            disabled={isVerifying}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all disabled:opacity-50 ${
+              userHasVerified
+                ? 'bg-green-500/20 text-green-400'
+                : 'hover:bg-white/5 text-zinc-400 hover:text-green-400'
+            }`}
+            title={userHasVerified ? 'Remove verification' : 'Verify this proof is genuine'}
+            aria-label={userHasVerified ? 'Remove verification' : 'Verify'}
+          >
+            <BadgeCheck className={`w-5 h-5 ${userHasVerified ? 'fill-current' : ''}`} />
+            {verificationCount > 0 && (
+              <span className="text-sm font-medium">{verificationCount}</span>
+            )}
+          </button>
+        )}
+
         {/* Bookmark */}
-        <button 
+        <button
           onClick={handleBookmark}
           className={`ml-auto p-2 rounded-lg transition-all ${
             isBookmarked

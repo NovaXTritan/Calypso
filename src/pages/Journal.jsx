@@ -1,15 +1,42 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
 import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore'
-import { Calendar, Trash2, Search, AlertCircle, Pencil, X, Check } from 'lucide-react'
+import { Calendar, Trash2, Search, AlertCircle, Pencil, X, Check, Sparkles, TrendingUp, BarChart3, Lightbulb, RefreshCw, BookOpen, Flame, Clock } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
+import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
 
-const MOODS = ['Calm', 'Focused', 'Stressed', 'Anxious', 'Happy', 'Tired']
+const MOODS = [
+  { name: 'Calm', emoji: '😌', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  { name: 'Focused', emoji: '🎯', color: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+  { name: 'Stressed', emoji: '😰', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+  { name: 'Anxious', emoji: '😟', color: 'bg-orange-500/20 text-orange-400 border-orange-500/30' },
+  { name: 'Happy', emoji: '😊', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  { name: 'Tired', emoji: '😴', color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' },
+  { name: 'Motivated', emoji: '🔥', color: 'bg-brand-500/20 text-brand-400 border-brand-500/30' },
+  { name: 'Grateful', emoji: '🙏', color: 'bg-green-500/20 text-green-400 border-green-500/30' }
+]
+
+const WRITING_PROMPTS = [
+  "What's one small win you had today?",
+  "What are you grateful for right now?",
+  "What's challenging you at the moment?",
+  "What did you learn today that surprised you?",
+  "How did you take care of yourself today?",
+  "What's one thing you want to accomplish tomorrow?",
+  "Describe a moment that made you smile today.",
+  "What would you tell your past self from a week ago?",
+  "What's been on your mind lately?",
+  "What's one habit you're trying to build?",
+  "How are you feeling about your learning progress?",
+  "What obstacle did you overcome recently?"
+]
 
 export default function Journal(){
   const { currentUser } = useAuth()
+  const prefersReducedMotion = usePrefersReducedMotion()
   const [content, setContent] = useState('')
   const [mood, setMood] = useState('Calm')
   const [tags, setTags] = useState('')
@@ -20,6 +47,111 @@ export default function Journal(){
   const [editingEntry, setEditingEntry] = useState(null)
   const [editContent, setEditContent] = useState('')
   const [editMood, setEditMood] = useState('')
+  const [currentPrompt, setCurrentPrompt] = useState('')
+  const [showInsights, setShowInsights] = useState(true)
+
+  // Animation variants based on reduced motion preference
+  const animationProps = useMemo(() => prefersReducedMotion ? {} : {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -10 }
+  }, [prefersReducedMotion])
+
+  // Get random prompt on mount
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * WRITING_PROMPTS.length)
+    setCurrentPrompt(WRITING_PROMPTS[randomIndex])
+  }, [])
+
+  // Refresh prompt - memoized
+  const refreshPrompt = useCallback(() => {
+    const randomIndex = Math.floor(Math.random() * WRITING_PROMPTS.length)
+    setCurrentPrompt(WRITING_PROMPTS[randomIndex])
+  }, [])
+
+  // Use prompt as starter - memoized
+  const usePrompt = useCallback(() => {
+    setContent(currentPrompt + '\n\n')
+  }, [currentPrompt])
+
+  // Calculate mood trends and insights
+  const insights = useMemo(() => {
+    if (entries.length === 0) return null
+
+    // Mood distribution
+    const moodCounts = {}
+    entries.forEach(entry => {
+      const m = entry.mood || 'Unknown'
+      moodCounts[m] = (moodCounts[m] || 0) + 1
+    })
+
+    // Most common mood
+    const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0]
+
+    // This week's entries
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const thisWeekEntries = entries.filter(e => e.createdAt >= weekAgo)
+
+    // Journaling streak (consecutive days)
+    let streak = 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    for (let i = 0; i < 365; i++) {
+      const checkDate = new Date(today)
+      checkDate.setDate(checkDate.getDate() - i)
+      const dateStr = checkDate.toISOString().split('T')[0]
+
+      const hasEntry = entries.some(e => {
+        if (!e.createdAt) return false
+        const entryDate = new Date(e.createdAt).toISOString().split('T')[0]
+        return entryDate === dateStr
+      })
+
+      if (hasEntry) {
+        streak++
+      } else if (i > 0) {
+        break
+      }
+    }
+
+    // Average words per entry
+    const totalWords = entries.reduce((sum, e) => {
+      return sum + (e.content?.split(/\s+/).length || 0)
+    }, 0)
+    const avgWords = Math.round(totalWords / entries.length)
+
+    // Last 7 days mood data for chart
+    const last7Days = []
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date()
+      date.setDate(date.getDate() - i)
+      const dateStr = date.toISOString().split('T')[0]
+      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
+
+      const dayEntries = entries.filter(e => {
+        if (!e.createdAt) return false
+        return new Date(e.createdAt).toISOString().split('T')[0] === dateStr
+      })
+
+      last7Days.push({
+        day: dayName,
+        date: dateStr,
+        count: dayEntries.length,
+        moods: dayEntries.map(e => e.mood)
+      })
+    }
+
+    return {
+      totalEntries: entries.length,
+      thisWeek: thisWeekEntries.length,
+      topMood: topMood ? { name: topMood[0], count: topMood[1] } : null,
+      moodCounts,
+      streak,
+      avgWords,
+      last7Days
+    }
+  }, [entries])
 
   useEffect(() => {
     fetchEntries()
@@ -140,9 +272,28 @@ export default function Journal(){
     entry.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
+  // Get mood config
+  const getMoodConfig = (moodName) => {
+    return MOODS.find(m => m.name === moodName) || { name: moodName, emoji: '😐', color: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30' }
+  }
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-12">
-      <h2 className="text-3xl font-bold mb-6">Journal</h2>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-3xl font-bold">Journal</h2>
+          <p className="text-zinc-400 mt-1">Reflect on your learning journey</p>
+        </div>
+        {insights && (
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-500/20 rounded-lg">
+              <Flame className="w-4 h-4 text-brand-400" />
+              <span className="text-sm font-medium text-brand-400">{insights.streak} day streak</span>
+            </div>
+          </div>
+        )}
+      </div>
 
       {fetchError && (
         <div className="glass p-4 rounded-xl mb-6 border border-red-500/30 bg-red-500/5">
@@ -159,25 +310,136 @@ export default function Journal(){
         </div>
       )}
 
+      {/* Insights Row */}
+      {insights && showInsights && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <div className="glass p-4 rounded-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-medium text-zinc-400 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" />
+                YOUR INSIGHTS
+              </h3>
+              <button
+                onClick={() => setShowInsights(false)}
+                className="text-zinc-500 hover:text-zinc-300 text-xs"
+              >
+                Hide
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+              <div className="text-center p-3 bg-white/5 rounded-xl">
+                <div className="text-2xl font-bold text-white">{insights.totalEntries}</div>
+                <div className="text-xs text-zinc-400">Total Entries</div>
+              </div>
+              <div className="text-center p-3 bg-white/5 rounded-xl">
+                <div className="text-2xl font-bold text-white">{insights.thisWeek}</div>
+                <div className="text-xs text-zinc-400">This Week</div>
+              </div>
+              <div className="text-center p-3 bg-white/5 rounded-xl">
+                <div className="text-2xl font-bold text-white">{insights.avgWords}</div>
+                <div className="text-xs text-zinc-400">Avg. Words</div>
+              </div>
+              <div className="text-center p-3 bg-white/5 rounded-xl">
+                {insights.topMood && (
+                  <>
+                    <div className="text-2xl">{getMoodConfig(insights.topMood.name).emoji}</div>
+                    <div className="text-xs text-zinc-400">Top Mood</div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Last 7 days activity */}
+            <div className="flex items-end justify-between gap-1 h-16">
+              {insights.last7Days.map((day, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                  <div
+                    className={`w-full rounded-t transition-all ${
+                      day.count > 0 ? 'bg-brand-500' : 'bg-white/10'
+                    }`}
+                    style={{ height: `${Math.max(4, day.count * 20)}px` }}
+                    title={`${day.count} ${day.count === 1 ? 'entry' : 'entries'}`}
+                  />
+                  <span className="text-[10px] text-zinc-500">{day.day}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Writing Prompt */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="mb-6"
+      >
+        <div className="glass p-4 rounded-2xl border border-yellow-500/20">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+              <Lightbulb className="w-5 h-5 text-yellow-400" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-medium text-zinc-400">WRITING PROMPT</span>
+                <Sparkles className="w-3 h-3 text-yellow-400" />
+              </div>
+              <p className="text-sm text-zinc-200 mb-3">{currentPrompt}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={usePrompt}
+                  className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 rounded-lg text-xs font-medium transition-colors"
+                >
+                  Use this prompt
+                </button>
+                <button
+                  onClick={refreshPrompt}
+                  className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+                  title="Get new prompt"
+                >
+                  <RefreshCw className="w-4 h-4 text-zinc-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Entry Form */}
         <div className="glass p-6 rounded-2xl">
-          <h3 className="text-xl font-semibold mb-4">New Entry</h3>
+          <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-brand-400" />
+            New Entry
+          </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2">
                 How are you feeling? *
               </label>
-              <select
-                value={mood}
-                onChange={e => setMood(e.target.value)}
-                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-brand-400 focus:outline-none"
-                required
-              >
+              <div className="grid grid-cols-4 gap-2">
                 {MOODS.map(m => (
-                  <option key={m} value={m}>{m}</option>
+                  <button
+                    key={m.name}
+                    type="button"
+                    onClick={() => setMood(m.name)}
+                    className={`p-2 rounded-xl border transition-all ${
+                      mood === m.name
+                        ? m.color + ' border-2 scale-105'
+                        : 'bg-white/5 border-white/10 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="text-xl mb-1">{m.emoji}</div>
+                    <div className="text-xs truncate">{m.name}</div>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             <div>
@@ -303,7 +565,8 @@ export default function Journal(){
                           <span className="text-sm text-zinc-400">
                             {entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : 'Unknown date'}
                           </span>
-                          <span className="px-3 py-1 rounded-full bg-brand-400/20 text-brand-400 text-xs">
+                          <span className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 border ${getMoodConfig(entry.mood).color}`}>
+                            <span>{getMoodConfig(entry.mood).emoji}</span>
                             {entry.mood || 'Unknown'}
                           </span>
                         </div>

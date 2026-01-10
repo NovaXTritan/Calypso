@@ -509,12 +509,12 @@ function ProofComposer({
                 setContent(e.target.value)
                 setError(null)
               }}
-              placeholder="What did you accomplish? Share your progress..."
-              className="w-full h-32 bg-white/5 border border-white/10 focus:border-brand-500 rounded-lg px-4 py-3 text-white placeholder-zinc-500 focus:outline-none resize-none transition-colors disabled:opacity-50"
+              placeholder="What did you accomplish today? Share your progress, learnings, or wins..."
+              className="w-full min-h-[160px] bg-white/5 border border-white/10 focus:border-brand-500 rounded-xl px-4 py-4 text-white placeholder-zinc-500 focus:outline-none resize-y transition-colors disabled:opacity-50 text-base leading-relaxed"
               maxLength={2000}
               disabled={isPosting}
             />
-            <div className="text-right text-xs text-zinc-500 mt-1">
+            <div className="text-right text-xs text-zinc-500 mt-2">
               {content.length}/2000
             </div>
           </div>
