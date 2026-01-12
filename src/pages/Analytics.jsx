@@ -4,8 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
-import CalendarHeatmap from 'react-calendar-heatmap'
-import 'react-calendar-heatmap/dist/styles.css'
+import GitHubHeatmap from '../components/GitHubHeatmap'
 import { Flame, Target, Users, TrendingUp, Award, ArrowUp, ArrowDown, Minus, BarChart3, Zap, Calendar, Clock, Sparkles, ChevronRight, Trophy, Star } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
@@ -538,35 +537,12 @@ export default function Analytics() {
       </div>
 
       {/* Activity Heatmap */}
-      <div className="glass-card p-6 rounded-xl mb-12">
-        <h2 className="text-xl font-semibold text-white mb-6">Activity Heatmap</h2>
-        <div className="overflow-x-auto">
-          <CalendarHeatmap
-            startDate={new Date(new Date().setDate(new Date().getDate() - 364))}
-            endDate={new Date()}
-            values={activityData}
-            classForValue={(value) => {
-              if (!value || value.count === 0) {
-                return 'color-empty'
-              }
-              return `color-scale-${Math.min(value.count, 4)}`
-            }}
-            tooltipDataAttrs={(value) => {
-              return {
-                'data-tip': `${value.date}: ${value.count || 0} proofs`
-              }
-            }}
-            showWeekdayLabels={true}
-          />
-        </div>
-        <style>{`
-          .react-calendar-heatmap .color-empty { fill: rgba(255,255,255,0.05); }
-          .react-calendar-heatmap .color-scale-1 { fill: rgba(102,125,255,0.3); }
-          .react-calendar-heatmap .color-scale-2 { fill: rgba(102,125,255,0.5); }
-          .react-calendar-heatmap .color-scale-3 { fill: rgba(102,125,255,0.7); }
-          .react-calendar-heatmap .color-scale-4 { fill: rgba(102,125,255,0.9); }
-          .react-calendar-heatmap text { fill: rgba(255,255,255,0.5); font-size: 10px; }
-        `}</style>
+      <div className="mb-8">
+        <GitHubHeatmap
+          activityData={activityData}
+          currentStreak={stats.currentStreak}
+          longestStreak={stats.bestStreak}
+        />
       </div>
 
       {/* Weekly Activity Chart */}
