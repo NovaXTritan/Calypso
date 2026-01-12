@@ -239,6 +239,12 @@ export default function Home(){
     goals.length > 0 ? Math.min(100, Math.round((joinedPods.length / Math.max(1, goals.length)) * 100)) : 0
   , [goals.length, joinedPods.length])
 
+  // Scroll-based animations - must be called unconditionally (React Hooks rule)
+  const { scrollYProgress } = useScroll()
+  const intensity = useTransform(scrollYProgress, [0, 0.25, 1], [1.0, 1.35, 1.6])
+  const heroY = useTransform(scrollYProgress, [0, 0.25], prefersReducedMotion ? [0, 0] : [0, -30])
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0.85])
+
   // Show landing page for non-authenticated visitors
   if (!currentUser) {
     return (
@@ -247,12 +253,6 @@ export default function Home(){
       </Suspense>
     )
   }
-
-  // Authenticated users see the dashboard
-  const { scrollYProgress } = useScroll()
-  const intensity = useTransform(scrollYProgress, [0, 0.25, 1], [1.0, 1.35, 1.6])
-  const heroY = useTransform(scrollYProgress, [0, 0.25], prefersReducedMotion ? [0, 0] : [0, -30])
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0.85])
 
   return (
     <section className="relative overflow-hidden">
