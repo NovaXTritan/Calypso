@@ -94,14 +94,16 @@ export default function Leaderboard() {
   }, [activeCategory, currentUser?.uid])
 
   // Get value for display based on category
+  // Ensures consistent handling of null/undefined/missing values
   const getValue = (user) => {
+    if (!user) return 0
     switch (activeCategory) {
       case 'streak':
-        return user.streak || 0
+        return typeof user.streak === 'number' ? user.streak : 0
       case 'proofs':
-        return user.totalProofs || 0
+        return typeof user.totalProofs === 'number' ? user.totalProofs : 0
       case 'pods':
-        return user.joinedPods?.length || 0
+        return Array.isArray(user.joinedPods) ? user.joinedPods.length : 0
       default:
         return 0
     }

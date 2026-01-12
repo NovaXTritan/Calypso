@@ -11,6 +11,7 @@ import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from 'f
 import { Calendar, Target, Users, Clock, ArrowRight, Award, Flame } from 'lucide-react'
 import { getUserAchievements, getAchievementProgress } from '../lib/achievements'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
+import { getWeekBoundaries, daysAgo } from '../utils/dateUtils'
 
 // Lazy load heavy components
 const BlackHoleCanvas = lazy(() => import('../components/BlackHoleCanvas'))
@@ -53,7 +54,8 @@ export default function Home(){
 
     const fetchHomeData = async () => {
       const now = Date.now()
-      const weekAgo = now - 7 * 24 * 60 * 60 * 1000
+      // Use proper week boundaries for activity query
+      const weekStart = daysAgo(7).getTime()
 
       // Build all queries
       const eventQuery = query(
@@ -71,7 +73,7 @@ export default function Home(){
 
       const activityQuery = query(
         collection(db, 'proofs'),
-        where('createdAt', '>=', weekAgo),
+        where('createdAt', '>=', weekStart),
         orderBy('createdAt', 'desc'),
         limit(10)
       )
@@ -122,11 +124,12 @@ export default function Home(){
   useEffect(() => {
     if (!currentUser?.uid) return
 
-    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    // Use proper week boundaries for consistent calculation
+    const thisWeekBounds = getWeekBoundaries(0)
     const q = query(
       collection(db, 'proofs'),
       where('authorId', '==', currentUser.uid),
-      where('createdAt', '>=', weekAgo)
+      where('createdAt', '>=', thisWeekBounds.start)
     )
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -190,9 +193,16 @@ export default function Home(){
   // Memoized computed values
   const goals = useMemo(() => currentUser?.goals || [], [currentUser?.goals])
   const joinedPods = useMemo(() => currentUser?.joinedPods || [], [currentUser?.joinedPods])
-  const goalProgress = useMemo(() =>
-    goals.length > 0 ? Math.min(100, Math.round((joinedPods.length / Math.max(1, goals.length)) * 100)) : 0
-  , [goals.length, joinedPods.length])
+  // Goal progress: based on having at least one pod per goal (meaningful metric)
+  // Users can make progress by joining relevant pods for each of their goals
+  const goalProgress = useMemo(() => {
+    if (goals.length === 0) return 0
+    // Calculate as: min(100, (pods joined / goals) * 50) + (proofs completed / 10) * 50
+    // This rewards both pod membership and actual learning activity
+    const podContribution = Math.min(50, (joinedPods.length / goals.length) * 50)
+    const proofContribution = Math.min(50, ((userStats.totalProofs || 0) / 10) * 50)
+    return Math.round(podContribution + proofContribution)
+  }, [goals.length, joinedPods.length, userStats.totalProofs])
 
   // Scroll-based animations - must be called unconditionally (React Hooks rule)
   const { scrollYProgress } = useScroll()

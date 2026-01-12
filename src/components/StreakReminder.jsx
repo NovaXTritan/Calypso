@@ -6,6 +6,7 @@ import { db } from '../lib/firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { Flame, X, Clock, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getTimeUntilMidnight, startOfDay, getDateKey } from '../utils/dateUtils'
 
 export default function StreakReminder() {
   const { currentUser } = useAuth()
@@ -16,23 +17,22 @@ export default function StreakReminder() {
   useEffect(() => {
     if (!currentUser?.uid || dismissed) return
 
-    // Check if user already dismissed today
+    // Check if user already dismissed today using consistent date comparison
     const dismissedKey = `streak_reminder_dismissed_${currentUser.uid}`
     const lastDismissed = localStorage.getItem(dismissedKey)
     if (lastDismissed) {
-      const dismissedDate = new Date(parseInt(lastDismissed))
-      const today = new Date()
-      if (dismissedDate.toDateString() === today.toDateString()) {
+      const dismissedDateKey = getDateKey(parseInt(lastDismissed))
+      const todayKey = getDateKey(new Date())
+      if (dismissedDateKey === todayKey) {
         return
       }
     }
 
     const checkStreakStatus = async () => {
       try {
-        // Get user's latest proof
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        const todayTimestamp = today.getTime()
+        // Get user's latest proof using proper start of day calculation
+        const todayStart = startOfDay(new Date())
+        const todayTimestamp = todayStart.getTime()
 
         // Check if user posted today - use simpler query to avoid index issues
         let todaySnapshot
@@ -72,12 +72,12 @@ export default function StreakReminder() {
         const currentStreak = currentUser.streak || 0
 
         if (currentStreak > 0) {
-          // Calculate hours left until midnight
-          const now = new Date()
-          const midnight = new Date(now)
-          midnight.setDate(midnight.getDate() + 1)
-          midnight.setHours(0, 0, 0, 0)
-          const hoursLeft = Math.floor((midnight - now) / (1000 * 60 * 60))
+          // Calculate hours left until midnight using proper DST-aware utility
+          const timeUntilMidnight = getTimeUntilMidnight()
+          // Add 1 if there are remaining minutes (show "8 hours" not "7 hours" if 7h 59m left)
+          const hoursLeft = timeUntilMidnight.minutes > 0
+            ? timeUntilMidnight.hours + 1
+            : timeUntilMidnight.hours
 
           let lastProofDate = null
           if (!lastProofSnapshot.empty) {

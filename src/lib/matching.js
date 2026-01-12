@@ -6,18 +6,25 @@
  * - Similar goals (using fuzzy matching)
  * - Activity patterns (streak, recent proofs)
  * - Complementary skills (learn from each other)
+ *
+ * All scores are normalized to 0-1 range for consistent weighting
  */
+
+import { getWeekBoundaries, normalizeDate } from '../utils/dateUtils'
 
 /**
  * Calculate Jaccard similarity coefficient
  * J(A,B) = |A ∩ B| / |A ∪ B|
+ * @returns {number} 0-1 normalized score
  */
 function jaccardSimilarity(setA, setB) {
   if (!setA?.length && !setB?.length) return 0
   if (!setA?.length || !setB?.length) return 0
 
-  const a = new Set(setA.map(s => s.toLowerCase().trim()))
-  const b = new Set(setB.map(s => s.toLowerCase().trim()))
+  const a = new Set(setA.map(s => String(s).toLowerCase().trim()).filter(Boolean))
+  const b = new Set(setB.map(s => String(s).toLowerCase().trim()).filter(Boolean))
+
+  if (a.size === 0 || b.size === 0) return 0
 
   const intersection = new Set([...a].filter(x => b.has(x)))
   const union = new Set([...a, ...b])
@@ -100,49 +107,56 @@ function goalSimilarity(goalsA, goalsB) {
 
 /**
  * Calculate activity score based on recent engagement
+ * @returns {number} 0-1 normalized score
  */
 function activityScore(user, recentPosts) {
   let score = 0
+  const maxScore = 100
 
   // Streak bonus (up to 30 points)
   const streak = user.streak || 0
   score += Math.min(streak * 3, 30)
 
-  // Recent posts (up to 40 points)
-  const postsThisWeek = recentPosts.filter(p =>
-    Date.now() - p.createdAt < 7 * 24 * 60 * 60 * 1000
-  ).length
+  // Recent posts using proper week boundaries (up to 40 points)
+  const weekBounds = getWeekBoundaries(0)
+  const postsThisWeek = recentPosts.filter(p => {
+    const ts = normalizeDate(p.createdAt).getTime()
+    return ts >= weekBounds.start && ts <= weekBounds.end
+  }).length
   score += Math.min(postsThisWeek * 8, 40)
 
   // Total proofs bonus (up to 30 points)
   const totalProofs = user.totalProofs || recentPosts.length
   score += Math.min(totalProofs * 2, 30)
 
-  return score / 100 // Normalize to 0-1
+  return score / maxScore // Normalize to 0-1
 }
 
 /**
  * Calculate complementary skills score
  * Users with some overlap but different specializations can learn from each other
+ * @returns {number} 0-1 normalized score (NOT 0.5-1.0 range)
  */
 function complementaryScore(userA, userB) {
   const goalsA = userA.goals || []
   const goalsB = userB.goals || []
 
+  // If either user has no goals, return neutral score
   if (!goalsA.length || !goalsB.length) return 0.5
 
   // Calculate overlap
   const overlap = jaccardSimilarity(goalsA, goalsB)
 
   // Sweet spot: 30-70% overlap is ideal (enough common ground but room to learn)
+  // Return score in 0-1 range
   if (overlap >= 0.3 && overlap <= 0.7) {
-    return 1.0
+    return 1.0 // Ideal overlap
   } else if (overlap < 0.3) {
-    // Too different - some penalty but still valuable
-    return 0.5 + overlap
+    // Too different - linear scale from 0.3 at 0% overlap to 1.0 at 30%
+    return 0.3 + (overlap / 0.3) * 0.7
   } else {
-    // Too similar - slight penalty
-    return 0.8 + (1 - overlap) * 0.2
+    // Too similar (>70%) - linear scale from 1.0 at 70% to 0.7 at 100%
+    return 1.0 - ((overlap - 0.7) / 0.3) * 0.3
   }
 }
 
@@ -201,10 +215,12 @@ export function calculateMatches(currentUser, allUsers, allPosts) {
         )
       )
 
-      // Recent activity count
-      const recentActivity = userPosts.filter(p =>
-        Date.now() - p.createdAt < 7 * 24 * 60 * 60 * 1000
-      ).length
+      // Recent activity count using proper week boundaries
+      const activityWeekBounds = getWeekBoundaries(0)
+      const recentActivity = userPosts.filter(p => {
+        const ts = normalizeDate(p.createdAt).getTime()
+        return ts >= activityWeekBounds.start && ts <= activityWeekBounds.end
+      }).length
 
       return {
         ...user,

@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
+import { getDateKey, calculateStreaks, getWeekBoundaries, normalizeDate, daysAgo } from '../utils/dateUtils'
 
 const MOODS = [
   { name: 'Calm', emoji: '😌', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
@@ -88,50 +89,36 @@ export default function Journal(){
     // Most common mood
     const topMood = Object.entries(moodCounts).sort((a, b) => b[1] - a[1])[0]
 
-    // This week's entries
-    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-    const thisWeekEntries = entries.filter(e => e.createdAt >= weekAgo)
+    // This week's entries using proper week boundaries
+    const thisWeekBounds = getWeekBoundaries(0)
+    const thisWeekEntries = entries.filter(e => {
+      const ts = normalizeDate(e.createdAt).getTime()
+      return ts >= thisWeekBounds.start && ts <= thisWeekBounds.end
+    })
 
-    // Journaling streak (consecutive days)
-    let streak = 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    // Journaling streak using centralized utility
+    const streakData = calculateStreaks(entries.map(e => ({ date: e.createdAt })))
+    const streak = streakData.current
 
-    for (let i = 0; i < 365; i++) {
-      const checkDate = new Date(today)
-      checkDate.setDate(checkDate.getDate() - i)
-      const dateStr = checkDate.toISOString().split('T')[0]
-
-      const hasEntry = entries.some(e => {
-        if (!e.createdAt) return false
-        const entryDate = new Date(e.createdAt).toISOString().split('T')[0]
-        return entryDate === dateStr
-      })
-
-      if (hasEntry) {
-        streak++
-      } else if (i > 0) {
-        break
-      }
-    }
-
-    // Average words per entry
-    const totalWords = entries.reduce((sum, e) => {
-      return sum + (e.content?.split(/\s+/).length || 0)
+    // Average words per entry (filter empty content)
+    const validEntries = entries.filter(e => e.content && e.content.trim())
+    const totalWords = validEntries.reduce((sum, e) => {
+      // Count words properly - handle multiple spaces and newlines
+      const words = e.content.trim().split(/\s+/).filter(w => w.length > 0)
+      return sum + words.length
     }, 0)
-    const avgWords = Math.round(totalWords / entries.length)
+    const avgWords = validEntries.length > 0 ? Math.round(totalWords / validEntries.length) : 0
 
-    // Last 7 days mood data for chart
+    // Last 7 days mood data for chart using local timezone
     const last7Days = []
     for (let i = 6; i >= 0; i--) {
-      const date = new Date()
-      date.setDate(date.getDate() - i)
-      const dateStr = date.toISOString().split('T')[0]
+      const date = daysAgo(i)
+      const dateStr = getDateKey(date) // Uses local timezone
       const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
 
       const dayEntries = entries.filter(e => {
         if (!e.createdAt) return false
-        return new Date(e.createdAt).toISOString().split('T')[0] === dateStr
+        return getDateKey(e.createdAt) === dateStr
       })
 
       last7Days.push({
@@ -196,7 +183,7 @@ export default function Journal(){
     setLoading(true)
 
     try {
-      const today = new Date().toISOString().split('T')[0]
+      const today = getDateKey(new Date()) // Local timezone date key
       const entryData = {
         userId: currentUser.uid,
         date: today,

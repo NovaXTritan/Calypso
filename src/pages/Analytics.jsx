@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
 import { getUserAchievements, getAchievementProgress, ACHIEVEMENTS } from '../lib/achievements'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
+import { getDateKey, calculateStreaks, getWeekBoundaries, normalizeDate, getDaysDifference, calculateAverage, daysAgo } from '../utils/dateUtils'
 
 export default function Analytics() {
   const { currentUser } = useAuth()
@@ -62,14 +63,14 @@ export default function Analytics() {
       // Calculate total proofs
       const totalProofs = posts.length
 
-      // Calculate activity by date
+      // Calculate activity by date using local timezone (via dateUtils)
       const activityByDate = {}
       const activityByDay = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }
       const activityByPod = {}
 
       posts.forEach(post => {
-        const date = new Date(post.createdAt)
-        const dateStr = date.toISOString().split('T')[0]
+        const date = normalizeDate(post.createdAt)
+        const dateStr = getDateKey(date) // Uses local timezone consistently
         activityByDate[dateStr] = (activityByDate[dateStr] || 0) + 1
         activityByDay[date.getDay()] = (activityByDay[date.getDay()] || 0) + 1
 
@@ -78,85 +79,61 @@ export default function Analytics() {
         }
       })
 
-      // Calculate current streak
-      let streak = 0
-      const today = new Date()
-      for (let i = 0; i < 365; i++) {
-        const checkDate = new Date(today)
-        checkDate.setDate(checkDate.getDate() - i)
-        const dateStr = checkDate.toISOString().split('T')[0]
-        if (activityByDate[dateStr]) {
-          streak++
-        } else if (i > 0) {
-          break
-        }
-      }
+      // Calculate streaks using centralized utility (handles all edge cases)
+      const streakData = calculateStreaks(posts.map(p => ({ date: p.createdAt })))
+      const streak = streakData.current
+      const bestStreak = streakData.longest
 
-      // Calculate best streak ever
-      let bestStreak = 0
-      let currentStreakCount = 0
-      const sortedDates = Object.keys(activityByDate).sort()
-      for (let i = 0; i < sortedDates.length; i++) {
-        if (i === 0) {
-          currentStreakCount = 1
-        } else {
-          const prevDate = new Date(sortedDates[i - 1])
-          const currDate = new Date(sortedDates[i])
-          const diffDays = Math.floor((currDate - prevDate) / (1000 * 60 * 60 * 24))
-          if (diffDays === 1) {
-            currentStreakCount++
-          } else {
-            currentStreakCount = 1
-          }
-        }
-        bestStreak = Math.max(bestStreak, currentStreakCount)
-      }
-
-      // Calculate this week and last week
-      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-      const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000
-      const thisWeek = posts.filter(p => p.createdAt > oneWeekAgo).length
-      const lastWeek = posts.filter(p => p.createdAt > twoWeeksAgo && p.createdAt <= oneWeekAgo).length
+      // Calculate this week and last week using proper week boundaries
+      const thisWeekBounds = getWeekBoundaries(0)
+      const lastWeekBounds = getWeekBoundaries(1)
+      const thisWeek = posts.filter(p => {
+        const ts = normalizeDate(p.createdAt).getTime()
+        return ts >= thisWeekBounds.start && ts <= thisWeekBounds.end
+      }).length
+      const lastWeek = posts.filter(p => {
+        const ts = normalizeDate(p.createdAt).getTime()
+        return ts >= lastWeekBounds.start && ts <= lastWeekBounds.end
+      }).length
 
       // Most active day
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
       const mostActiveDayNum = Object.entries(activityByDay).sort((a, b) => b[1] - a[1])[0]
-      const mostActiveDay = dayNames[parseInt(mostActiveDayNum[0])]
+      const mostActiveDay = mostActiveDayNum && mostActiveDayNum[1] > 0
+        ? dayNames[parseInt(mostActiveDayNum[0])]
+        : 'N/A'
 
       // Most active pod
       const podEntries = Object.entries(activityByPod).sort((a, b) => b[1] - a[1])
       const mostActivePod = podEntries.length > 0 ? podEntries[0][0] : 'None'
 
-      // Average proofs per week
-      const weeksActive = Math.max(1, Math.ceil(posts.length > 0 ? (Date.now() - Math.min(...posts.map(p => p.createdAt))) / (7 * 24 * 60 * 60 * 1000) : 1))
-      const avgProofsPerWeek = Math.round((totalProofs / weeksActive) * 10) / 10
+      // Average proofs per week using proper calculation
+      const firstPostDate = posts.length > 0
+        ? Math.min(...posts.map(p => normalizeDate(p.createdAt).getTime()))
+        : Date.now()
+      const avgProofsPerWeek = calculateAverage(totalProofs, firstPostDate, 'week')
 
       // Get pods joined
       const podsJoined = currentUser.joinedPods?.length || 0
 
-      // Prepare heatmap data (last 365 days)
+      // Prepare heatmap data (last 365 days) using local timezone
       const heatmapData = []
       for (let i = 364; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
+        const date = daysAgo(i)
+        const dateStr = getDateKey(date) // Local timezone
         heatmapData.push({
           date: dateStr,
           count: activityByDate[dateStr] || 0
         })
       }
 
-      // Prepare weekly chart data (last 8 weeks)
+      // Prepare weekly chart data (last 8 weeks) using proper boundaries
       const weeklyActivity = []
       for (let i = 7; i >= 0; i--) {
-        const weekStart = new Date()
-        weekStart.setDate(weekStart.getDate() - (i * 7))
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekEnd.getDate() + 6)
-
+        const weekBounds = getWeekBoundaries(i)
         const weekPosts = posts.filter(p => {
-          const postDate = new Date(p.createdAt)
-          return postDate >= weekStart && postDate <= weekEnd
+          const ts = normalizeDate(p.createdAt).getTime()
+          return ts >= weekBounds.start && ts <= weekBounds.end
         })
 
         weeklyActivity.push({
