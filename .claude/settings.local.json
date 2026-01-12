@@ -7,7 +7,31 @@
       "Bash(npm install:*)",
       "Bash(node scripts/generate-icons.mjs:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" rm -r --cached:*)",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" add .gitignore seed.mjs src/lib/firebase.js)",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" commit -m \"$\\(cat <<''EOF''\nfix: remove exposed API keys and add dist to gitignore\n\n- Remove hardcoded Firebase API key from seed.mjs \\(use env vars instead\\)\n- Remove dist/ folder from git tracking \\(contained bundled secrets\\)\n- Add dist/ to .gitignore to prevent future commits\n- Remove debug console.log statements from firebase.js\n\nSECURITY: API key was exposed in commit 962a2d46. Key rotation required.\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" push origin master)",
+      "Bash(gh run list:*)",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" add package.json package-lock.json)",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" commit -m \"chore: add dotenv for seed script\")",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" add vite.config.js)",
+      "Bash(git -C \"C:\\\\Users\\\\Divyanshu\\\\Downloads\\\\cosmos-complete\\\\cosmos-main\" commit -m \"fix: add base path for GitHub Pages deployment\")",
+      "Bash(git push:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "WebFetch(domain:novaxtritan.github.io)",
+      "Bash(curl:*)",
+      "Bash(start \"\" \"https://novaxtritan.github.io/Calypso/\")",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(taskkill:*)",
+      "Bash(ls:*)",
+      "Bash(npm run test:run:*)",
+      "WebFetch(domain:cosmos-e42b5.web.app)"
     ]
   }
 }

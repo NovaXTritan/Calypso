@@ -494,6 +494,24 @@ input[type="range"]::-moz-range-thumb:hover {
   }
 }
 
+/* Screen shake animation for celebrations */
+@keyframes shake {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  10% { transform: translateX(-8px) translateY(-2px); }
+  20% { transform: translateX(8px) translateY(2px); }
+  30% { transform: translateX(-6px) translateY(-1px); }
+  40% { transform: translateX(6px) translateY(1px); }
+  50% { transform: translateX(-4px) translateY(-1px); }
+  60% { transform: translateX(4px) translateY(1px); }
+  70% { transform: translateX(-2px) translateY(0); }
+  80% { transform: translateX(2px) translateY(0); }
+  90% { transform: translateX(-1px) translateY(0); }
+}
+
+.animate-shake {
+  animation: shake 0.5s ease-in-out;
+}
+
 /* Sticky header for mobile */
 .sticky-header-mobile {
   @apply sticky top-0 z-30 bg-night-900/80 backdrop-blur-xl border-b border-white/5;

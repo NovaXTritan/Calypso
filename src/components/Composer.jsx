@@ -30,6 +30,7 @@ import {
 import { safeToast, safeString, safeNumber } from '../utils/safe'
 import { sanitizeText } from '../utils/security'
 import { checkAchievements } from '../lib/achievements'
+import { useCelebration } from '../contexts/CelebrationContext'
 
 // Use sanitizeText from security.js, fallback to basic escaping
 const sanitize = (str) => {
@@ -78,12 +79,12 @@ const PROOF_TYPES = [
 // COMPONENT
 // ============================================
 
-function ProofComposer({ 
-  podSlug = '', 
-  podName = '', 
-  threadId = null, 
+function ProofComposer({
+  podSlug = '',
+  podName = '',
+  threadId = null,
   threadTitle = null,
-  onSuccess 
+  onSuccess
 }) {
   // Safe auth hook
   let user = null
@@ -93,7 +94,10 @@ function ProofComposer({
   } catch {
     trackError('Auth context not available', { component: 'Composer' }, 'warn', ErrorCategory.AUTH)
   }
-  
+
+  // Celebration hook for streak milestones
+  const { checkStreakMilestone, celebrate } = useCelebration()
+
   const fileInputRef = useRef(null)
   
   const [type, setType] = useState('text')
@@ -316,14 +320,34 @@ function ProofComposer({
         lastProofDate: serverTimestamp()
       }).catch(err => trackError(err, { action: 'updateStats', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE))
 
-      // Check for new achievements (fire and forget)
+      // Check for new achievements and celebrate if any
+      const oldStreak = profile?.streak || 0
+      const isFirstProof = (profile?.totalProofs || 0) === 0
+
       checkAchievements(user.uid, {
         streak: streak,
         totalProofs: (profile?.totalProofs || 0) + 1,
         podsJoined: profile?.joinedPods?.length || 0
-      }, { justPostedProof: true }).catch(err =>
-        trackError(err, { action: 'checkAchievements', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE)
-      )
+      }, { justPostedProof: true })
+        .then(newAchievements => {
+          // Celebrate based on what happened
+          if (isFirstProof) {
+            // First proof celebration (higher priority)
+            setTimeout(() => celebrate('FIRST_PROOF'), 500)
+          } else if (checkStreakMilestone(streak, oldStreak)) {
+            // Streak milestone was celebrated
+          } else if (newAchievements && newAchievements.length > 0) {
+            // Celebrate first new achievement
+            setTimeout(() => celebrate('ACHIEVEMENT', {
+              title: newAchievements[0].name,
+              subtitle: newAchievements[0].description,
+              icon: newAchievements[0].icon || '🏆'
+            }), 500)
+          }
+        })
+        .catch(err =>
+          trackError(err, { action: 'checkAchievements', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE)
+        )
 
       // Reset form
       setContent('')

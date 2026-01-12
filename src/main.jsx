@@ -5,8 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { HelmetProvider } from 'react-helmet-async'
 import './styles.css'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { CelebrationProvider } from './contexts/CelebrationContext'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import NavBar from './components/NavBar'
+import CelebrationOverlay from './components/CelebrationOverlay'
 import Footer from './components/Footer'
 import BottomNav from './components/BottomNav'
 import CursorRing from './components/CursorRing'
@@ -120,6 +122,7 @@ function AppContent() {
 function App(){
   return (
     <>
+      <CelebrationOverlay />
       <AppContent />
       <Toaster
         position="top-center"
@@ -156,7 +159,9 @@ createRoot(document.getElementById('root')).render(
       <ErrorBoundary>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <CelebrationProvider>
+              <App />
+            </CelebrationProvider>
           </AuthProvider>
         </BrowserRouter>
       </ErrorBoundary>
