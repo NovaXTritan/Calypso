@@ -1,65 +1,112 @@
-import React, { useMemo } from 'react'
-import { Flame } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { Flame, Calendar, TrendingUp, Zap } from 'lucide-react'
 
 /**
  * GitHub-style contribution heatmap showing activity over the past year
- *
- * @param {Object} props
- * @param {Array} props.activityData - Array of { date: timestamp, count: number }
- * @param {number} props.currentStreak - Current streak count
- * @param {number} props.longestStreak - Longest streak ever
+ * Accurate date handling, proper streak calculation, and responsive design
  */
-export default function GitHubHeatmap({ activityData = [], currentStreak = 0, longestStreak = 0 }) {
-  const weeks = 53
-  const days = 7
+export default function GitHubHeatmap({ activityData = [], currentStreak: propStreak, longestStreak: propLongestStreak }) {
+  const [selectedDay, setSelectedDay] = useState(null)
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
 
   // Process activity data into a date -> count map
   const activityMap = useMemo(() => {
     const map = new Map()
 
     activityData.forEach(item => {
-      const date = item.date?.toDate ? item.date.toDate() : new Date(item.date)
-      const dateKey = date.toISOString().split('T')[0] // YYYY-MM-DD
+      // Handle Firebase Timestamp, Date object, or timestamp number
+      let date
+      if (item.date?.toDate) {
+        date = item.date.toDate()
+      } else if (item.date instanceof Date) {
+        date = item.date
+      } else if (typeof item.date === 'number') {
+        date = new Date(item.date)
+      } else {
+        date = new Date(item.date)
+      }
+
+      if (isNaN(date.getTime())) return // Skip invalid dates
+
+      // Create date key in local timezone (YYYY-MM-DD)
+      const dateKey = formatDateKey(date)
       map.set(dateKey, (map.get(dateKey) || 0) + (item.count || 1))
     })
 
     return map
   }, [activityData])
 
-  // Generate the grid data for the past 52 weeks
-  const gridData = useMemo(() => {
+  // Format date to YYYY-MM-DD in local timezone
+  function formatDateKey(date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // Generate grid data for the past 53 weeks (GitHub shows ~1 year)
+  const { gridData, monthLabels } = useMemo(() => {
     const today = new Date()
+    today.setHours(23, 59, 59, 999) // End of today
+
     const grid = []
+    const months = []
+    let lastMonth = -1
 
-    // Find the first day (Sunday) of 52 weeks ago
+    // Calculate start date: go back ~1 year to the nearest Sunday
     const startDate = new Date(today)
-    startDate.setDate(startDate.getDate() - (weeks * 7) + (7 - today.getDay()))
+    startDate.setDate(startDate.getDate() - 364) // Go back ~52 weeks
+    // Adjust to the previous Sunday (day 0)
+    const dayOfWeek = startDate.getDay()
+    startDate.setDate(startDate.getDate() - dayOfWeek)
+    startDate.setHours(0, 0, 0, 0)
 
-    for (let w = 0; w < weeks; w++) {
-      const week = []
-      for (let d = 0; d < days; d++) {
+    // Calculate total days from start to today
+    const totalDays = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24)) + 1
+    const totalWeeks = Math.ceil(totalDays / 7)
+
+    // Generate grid: each column is a week, each row is a day (Sun=0 to Sat=6)
+    for (let week = 0; week < totalWeeks; week++) {
+      const weekData = []
+
+      for (let day = 0; day < 7; day++) {
         const currentDate = new Date(startDate)
-        currentDate.setDate(startDate.getDate() + (w * 7) + d)
+        currentDate.setDate(startDate.getDate() + (week * 7) + day)
 
-        const dateKey = currentDate.toISOString().split('T')[0]
+        const dateKey = formatDateKey(currentDate)
         const count = activityMap.get(dateKey) || 0
         const isFuture = currentDate > today
+        const isToday = dateKey === formatDateKey(today)
 
-        week.push({
+        weekData.push({
           date: currentDate,
           dateKey,
           count,
           isFuture,
+          isToday,
           level: isFuture ? -1 : getActivityLevel(count)
         })
+
+        // Track month labels (first day of each month that appears)
+        if (day === 0) {
+          const month = currentDate.getMonth()
+          if (month !== lastMonth && !isFuture) {
+            months.push({
+              month: currentDate.toLocaleDateString('en-US', { month: 'short' }),
+              weekIndex: week
+            })
+            lastMonth = month
+          }
+        }
       }
-      grid.push(week)
+
+      grid.push(weekData)
     }
 
-    return grid
-  }, [activityMap, weeks, days])
+    return { gridData: grid, monthLabels: months }
+  }, [activityMap])
 
-  // Calculate stats
+  // Calculate stats from actual data
   const stats = useMemo(() => {
     let totalActivity = 0
     let activeDays = 0
@@ -74,151 +121,323 @@ export default function GitHubHeatmap({ activityData = [], currentStreak = 0, lo
     return { totalActivity, activeDays, maxInDay }
   }, [activityMap])
 
-  // Get activity level (0-4) based on count
+  // Calculate streaks from grid data (more accurate than props)
+  const { currentStreak, longestStreak, weeklyAvg, thisWeekCount } = useMemo(() => {
+    const today = new Date()
+    const todayKey = formatDateKey(today)
+
+    // Flatten grid into chronological order
+    const allDays = gridData.flat().filter(d => !d.isFuture)
+
+    // Sort by date ascending
+    allDays.sort((a, b) => a.date - b.date)
+
+    let current = 0
+    let longest = 0
+    let tempStreak = 0
+    let lastActiveDate = null
+
+    // Calculate streaks
+    allDays.forEach(day => {
+      if (day.count > 0) {
+        if (lastActiveDate === null) {
+          tempStreak = 1
+        } else {
+          const dayDiff = Math.round((day.date - lastActiveDate) / (1000 * 60 * 60 * 24))
+          if (dayDiff === 1) {
+            tempStreak++
+          } else {
+            tempStreak = 1
+          }
+        }
+        lastActiveDate = day.date
+        longest = Math.max(longest, tempStreak)
+      } else {
+        tempStreak = 0
+      }
+    })
+
+    // Current streak: count backwards from today
+    current = 0
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    // Check if today has activity
+    const todayActivity = activityMap.get(todayKey) || 0
+
+    if (todayActivity > 0) {
+      current = 1
+      // Count backwards
+      for (let i = 1; i <= 365; i++) {
+        const checkDate = new Date(today)
+        checkDate.setDate(checkDate.getDate() - i)
+        const checkKey = formatDateKey(checkDate)
+        if (activityMap.get(checkKey) > 0) {
+          current++
+        } else {
+          break
+        }
+      }
+    } else {
+      // Check if yesterday had activity (streak might still be active)
+      const yesterdayKey = formatDateKey(yesterday)
+      if (activityMap.get(yesterdayKey) > 0) {
+        current = 1
+        for (let i = 2; i <= 365; i++) {
+          const checkDate = new Date(today)
+          checkDate.setDate(checkDate.getDate() - i)
+          const checkKey = formatDateKey(checkDate)
+          if (activityMap.get(checkKey) > 0) {
+            current++
+          } else {
+            break
+          }
+        }
+      }
+    }
+
+    // Weekly average (last 12 weeks)
+    const last12Weeks = gridData.slice(-12)
+    let weeklyTotal = 0
+    last12Weeks.forEach(week => {
+      week.forEach(day => {
+        if (!day.isFuture) weeklyTotal += day.count
+      })
+    })
+    const weeklyAvg = (weeklyTotal / 12).toFixed(1)
+
+    // This week count
+    const currentWeek = gridData[gridData.length - 1] || []
+    const thisWeekCount = currentWeek.reduce((sum, day) => sum + (day.isFuture ? 0 : day.count), 0)
+
+    // Use prop values if they're higher (from database)
+    const finalCurrent = Math.max(current, propStreak || 0)
+    const finalLongest = Math.max(longest, propLongestStreak || 0, finalCurrent)
+
+    return {
+      currentStreak: finalCurrent,
+      longestStreak: finalLongest,
+      weeklyAvg,
+      thisWeekCount
+    }
+  }, [gridData, activityMap, propStreak, propLongestStreak])
+
+  // Activity level (0-4) based on relative activity
   function getActivityLevel(count) {
     if (count === 0) return 0
-    if (count === 1) return 1
-    if (count === 2) return 2
-    if (count <= 4) return 3
+    if (stats.maxInDay <= 1) {
+      return count >= 1 ? 2 : 0
+    }
+    const ratio = count / stats.maxInDay
+    if (ratio <= 0.25) return 1
+    if (ratio <= 0.5) return 2
+    if (ratio <= 0.75) return 3
     return 4
   }
 
-  // Get color class based on activity level
-  function getColor(level) {
-    switch (level) {
-      case -1: return 'bg-zinc-800/30' // Future
-      case 0: return 'bg-zinc-800/60'
-      case 1: return 'bg-brand-400/40'
-      case 2: return 'bg-brand-500/60'
-      case 3: return 'bg-brand-500/80'
-      case 4: return 'bg-brand-600'
-      default: return 'bg-zinc-800/60'
+  // Color classes based on activity level
+  function getColorClass(level, isToday = false) {
+    const colors = {
+      [-1]: 'bg-zinc-800/20', // Future
+      0: 'bg-zinc-700/40',
+      1: 'bg-emerald-900/70',
+      2: 'bg-emerald-700/80',
+      3: 'bg-emerald-500/90',
+      4: 'bg-emerald-400'
     }
+    return colors[level] || colors[0]
   }
 
-  // Format date for tooltip
+  // Format date for display
   function formatDate(date) {
     return date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
+      weekday: 'long',
+      month: 'long',
       day: 'numeric',
       year: 'numeric'
     })
   }
 
-  // Get month labels
-  const monthLabels = useMemo(() => {
-    const labels = []
-    let lastMonth = -1
-
-    gridData.forEach((week, weekIndex) => {
-      const firstDayOfWeek = week[0].date
-      const month = firstDayOfWeek.getMonth()
-
-      if (month !== lastMonth) {
-        labels.push({
-          month: firstDayOfWeek.toLocaleDateString('en-US', { month: 'short' }),
-          weekIndex
-        })
-        lastMonth = month
-      }
+  // Format short date
+  function formatShortDate(date) {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
     })
+  }
 
-    return labels
-  }, [gridData])
+  // Day names (showing only Mon, Wed, Fri like GitHub)
+  const dayLabels = ['', 'Mon', '', 'Wed', '', 'Fri', '']
+
+  // Handle cell hover
+  function handleCellHover(e, day) {
+    if (day.isFuture) return
+    const rect = e.target.getBoundingClientRect()
+    setTooltipPos({
+      x: rect.left + rect.width / 2,
+      y: rect.top
+    })
+    setSelectedDay(day)
+  }
 
   return (
     <div className="glass p-5 rounded-xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Flame className="text-glow-500" size={20} />
+            <Calendar className="text-emerald-400" size={20} />
             Activity Heatmap
           </h3>
           <p className="text-sm text-zinc-400 mt-0.5">
-            {stats.totalActivity} proofs in the last year
+            {stats.totalActivity} proof{stats.totalActivity !== 1 ? 's' : ''} in the last year
           </p>
         </div>
 
         {/* Legend */}
         <div className="flex items-center gap-2 text-xs text-zinc-400">
           <span>Less</span>
-          {[0, 1, 2, 3, 4].map(i => (
-            <span key={i} className={`w-3 h-3 rounded-sm ${getColor(i)}`} />
-          ))}
+          <div className="flex gap-1">
+            {[0, 1, 2, 3, 4].map(level => (
+              <div
+                key={level}
+                className={`w-3 h-3 rounded-sm ${getColorClass(level)}`}
+                title={level === 0 ? 'No activity' : `Level ${level}`}
+              />
+            ))}
+          </div>
           <span>More</span>
         </div>
       </div>
 
-      {/* Streak Stats */}
-      <div className="flex items-center gap-6 mb-4 text-sm">
-        <div className="flex items-center gap-2">
-          <Flame className="text-glow-500" size={16} />
-          <span className="text-zinc-400">Current:</span>
-          <span className="font-semibold text-white">{currentStreak} days</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-400">Longest:</span>
-          <span className="font-semibold text-white">{longestStreak} days</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-zinc-400">Active days:</span>
-          <span className="font-semibold text-white">{stats.activeDays}</span>
-        </div>
-      </div>
-
-      {/* Month Labels */}
-      <div className="flex gap-[3px] ml-8 mb-1 text-xs text-zinc-500">
-        {monthLabels.map((label, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{ marginLeft: `${label.weekIndex * 15}px` }}
-          >
-            {label.month}
+      {/* Stats Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div className="bg-white/5 rounded-lg p-3 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-xl font-bold text-glow-400">
+            <Flame size={18} />
+            {currentStreak}
           </div>
-        ))}
+          <div className="text-xs text-zinc-500 mt-1">Current Streak</div>
+        </div>
+        <div className="bg-white/5 rounded-lg p-3 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-xl font-bold text-emerald-400">
+            <TrendingUp size={18} />
+            {longestStreak}
+          </div>
+          <div className="text-xs text-zinc-500 mt-1">Longest Streak</div>
+        </div>
+        <div className="bg-white/5 rounded-lg p-3 text-center">
+          <div className="flex items-center justify-center gap-1.5 text-xl font-bold text-brand-400">
+            <Zap size={18} />
+            {thisWeekCount}
+          </div>
+          <div className="text-xs text-zinc-500 mt-1">This Week</div>
+        </div>
+        <div className="bg-white/5 rounded-lg p-3 text-center">
+          <div className="text-xl font-bold text-purple-400">{stats.activeDays}</div>
+          <div className="text-xs text-zinc-500 mt-1">Active Days</div>
+        </div>
       </div>
 
-      {/* Heatmap Grid */}
-      <div className="flex gap-1">
-        {/* Day labels */}
-        <div className="flex flex-col gap-[3px] text-xs text-zinc-500 pr-2">
-          <span className="h-3 sm:h-3.5 md:h-4"></span>
-          <span className="h-3 sm:h-3.5 md:h-4 flex items-center">Mon</span>
-          <span className="h-3 sm:h-3.5 md:h-4"></span>
-          <span className="h-3 sm:h-3.5 md:h-4 flex items-center">Wed</span>
-          <span className="h-3 sm:h-3.5 md:h-4"></span>
-          <span className="h-3 sm:h-3.5 md:h-4 flex items-center">Fri</span>
-          <span className="h-3 sm:h-3.5 md:h-4"></span>
+      {/* Heatmap Container */}
+      <div className="relative overflow-x-auto pb-2">
+        {/* Month Labels */}
+        <div className="flex mb-2" style={{ marginLeft: '32px' }}>
+          {monthLabels.map((label, i) => {
+            // Calculate position based on week index
+            const nextLabel = monthLabels[i + 1]
+            const width = nextLabel
+              ? (nextLabel.weekIndex - label.weekIndex) * 13
+              : (gridData.length - label.weekIndex) * 13
+
+            return (
+              <div
+                key={`${label.month}-${label.weekIndex}`}
+                className="text-xs text-zinc-500 flex-shrink-0"
+                style={{ width: `${Math.max(width, 26)}px` }}
+              >
+                {label.month}
+              </div>
+            )
+          })}
         </div>
 
-        {/* Grid */}
-        <div className="flex gap-[3px] overflow-x-auto pb-2">
-          {gridData.map((week, weekIndex) => (
-            <div key={weekIndex} className="flex flex-col gap-[3px]">
-              {week.map((day, dayIndex) => (
-                <div
-                  key={dayIndex}
-                  className={`w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 rounded-sm ${getColor(day.level)}
-                    ${!day.isFuture && 'hover:ring-2 hover:ring-white/50 cursor-pointer'}
-                    transition-all group relative`}
-                  title={day.isFuture ? '' : `${formatDate(day.date)}: ${day.count} proof${day.count !== 1 ? 's' : ''}`}
-                >
-                  {/* Tooltip */}
-                  {!day.isFuture && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1
-                      bg-night-800 border border-white/10 rounded text-xs whitespace-nowrap
-                      opacity-0 group-hover:opacity-100 transition pointer-events-none z-20 shadow-lg">
-                      <div className="font-medium">{day.count} proof{day.count !== 1 ? 's' : ''}</div>
-                      <div className="text-zinc-400">{formatDate(day.date)}</div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
+        {/* Grid with Day Labels */}
+        <div className="flex">
+          {/* Day Labels Column */}
+          <div className="flex flex-col gap-[3px] pr-2 flex-shrink-0" style={{ width: '32px' }}>
+            {dayLabels.map((label, i) => (
+              <div
+                key={i}
+                className="h-[11px] text-[10px] text-zinc-500 flex items-center justify-end pr-1"
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+
+          {/* Heatmap Grid */}
+          <div className="flex gap-[3px]">
+            {gridData.map((week, weekIndex) => (
+              <div key={weekIndex} className="flex flex-col gap-[3px]">
+                {week.map((day, dayIndex) => (
+                  <div
+                    key={day.dateKey}
+                    className={`
+                      w-[11px] h-[11px] rounded-sm transition-all duration-150
+                      ${getColorClass(day.level, day.isToday)}
+                      ${day.isToday ? 'ring-1 ring-white/50' : ''}
+                      ${!day.isFuture ? 'hover:ring-2 hover:ring-white/70 cursor-pointer' : 'cursor-default'}
+                    `}
+                    onMouseEnter={(e) => handleCellHover(e, day)}
+                    onMouseLeave={() => setSelectedDay(null)}
+                    onClick={() => !day.isFuture && setSelectedDay(selectedDay?.dateKey === day.dateKey ? null : day)}
+                    role="gridcell"
+                    aria-label={day.isFuture ? 'Future date' : `${formatShortDate(day.date)}: ${day.count} proof${day.count !== 1 ? 's' : ''}`}
+                    tabIndex={day.isFuture ? -1 : 0}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Floating Tooltip */}
+      {selectedDay && !selectedDay.isFuture && (
+        <div
+          className="fixed z-50 px-3 py-2 bg-night-900 border border-white/20 rounded-lg shadow-xl pointer-events-none transform -translate-x-1/2 -translate-y-full"
+          style={{
+            left: tooltipPos.x,
+            top: tooltipPos.y - 8
+          }}
+        >
+          <div className="text-sm font-medium text-white">
+            {selectedDay.count} proof{selectedDay.count !== 1 ? 's' : ''}
+          </div>
+          <div className="text-xs text-zinc-400">
+            {formatDate(selectedDay.date)}
+          </div>
+          {selectedDay.isToday && (
+            <div className="text-xs text-emerald-400 mt-1">Today</div>
+          )}
+        </div>
+      )}
+
+      {/* Weekly Summary */}
+      <div className="mt-4 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500">
+        <div>
+          Avg: <span className="text-zinc-300">{weeklyAvg}</span> proofs/week
+        </div>
+        <div>
+          {currentStreak > 0 ? (
+            <span className="text-glow-400">
+              <Flame size={12} className="inline mr-1" />
+              {currentStreak} day streak! Keep it up!
+            </span>
+          ) : (
+            <span>Post a proof today to start your streak!</span>
+          )}
         </div>
       </div>
     </div>
