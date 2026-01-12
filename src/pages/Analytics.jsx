@@ -10,7 +10,7 @@ import { motion } from 'framer-motion'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
 import { getUserAchievements, getAchievementProgress, ACHIEVEMENTS } from '../lib/achievements'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
-import { getDateKey, calculateStreaks, getWeekBoundaries, normalizeDate, getDaysDifference, calculateAverage, daysAgo } from '../utils/dateUtils'
+import { getDateKey, calculateStreaks, getWeekBoundaries, normalizeDate, calculateAverage } from '../utils/dateUtils'
 
 export default function Analytics() {
   const { currentUser } = useAuth()
@@ -115,16 +115,11 @@ export default function Analytics() {
       // Get pods joined
       const podsJoined = currentUser.joinedPods?.length || 0
 
-      // Prepare heatmap data (last 365 days) using local timezone
-      const heatmapData = []
-      for (let i = 364; i >= 0; i--) {
-        const date = daysAgo(i)
-        const dateStr = getDateKey(date) // Local timezone
-        heatmapData.push({
-          date: dateStr,
-          count: activityByDate[dateStr] || 0
-        })
-      }
+      // Prepare heatmap data from proofs (same format as Profile)
+      const heatmapData = posts.map(post => ({
+        date: post.createdAt,
+        count: 1
+      }))
 
       // Prepare weekly chart data (last 8 weeks) using proper boundaries
       const weeklyActivity = []
