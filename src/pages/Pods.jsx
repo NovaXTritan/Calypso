@@ -63,44 +63,49 @@ export default function Pods() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get member counts from denormalized stats (O(1) instead of O(n))
-        const podStatsData = await firestoreOperation(
-          () => getAllPodStats(),
-          { operation: 'Get pod stats' }
+        // Get member counts by scanning users (reliable method)
+        const usersSnapshot = await firestoreOperation(
+          () => getDocs(query(collection(db, 'users'), limit(1000))),
+          { operation: 'Get users for member counts' }
         )
 
-        // Get only recent proofs (last 7 days) with pagination
-        // This avoids scanning the entire proofs collection
+        const memberCounts = {}
+        usersSnapshot.docs.forEach(doc => {
+          const userData = doc.data()
+          const joinedPods = userData.joinedPods || []
+          joinedPods.forEach(podSlug => {
+            memberCounts[podSlug] = (memberCounts[podSlug] || 0) + 1
+          })
+        })
+
+        // Get proof counts
+        const proofsSnapshot = await firestoreOperation(
+          () => getDocs(query(collection(db, 'proofs'), limit(1000))),
+          { operation: 'Get proofs' }
+        )
+
         const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-        const recentProofsQuery = query(
-          collection(db, 'proofs'),
-          where('createdAt', '>=', weekAgo),
-          orderBy('createdAt', 'desc'),
-          limit(500) // Cap at 500 recent proofs for performance
-        )
-        const recentProofsSnapshot = await firestoreOperation(
-          () => getDocs(recentProofsQuery),
-          { operation: 'Get recent proofs' }
-        )
-
+        const proofCounts = {}
         const weeklyProofs = {}
-        recentProofsSnapshot.docs.forEach(doc => {
+
+        proofsSnapshot.docs.forEach(doc => {
           const proof = doc.data()
           const podSlug = proof.podSlug
           if (podSlug) {
-            weeklyProofs[podSlug] = (weeklyProofs[podSlug] || 0) + 1
+            proofCounts[podSlug] = (proofCounts[podSlug] || 0) + 1
+            if (proof.createdAt >= weekAgo) {
+              weeklyProofs[podSlug] = (weeklyProofs[podSlug] || 0) + 1
+            }
           }
         })
 
         // Combine stats for all pods
-        // Use denormalized stats for member counts and total proofs
         const stats = {}
         defaultPods.forEach(name => {
           const slug = slugify(name)
-          const podData = podStatsData[slug] || {}
           stats[slug] = {
-            members: podData.memberCount || 0,
-            totalProofs: podData.totalProofs || 0,
+            members: memberCounts[slug] || 0,
+            totalProofs: proofCounts[slug] || 0,
             weeklyProofs: weeklyProofs[slug] || 0
           }
         })
@@ -120,10 +125,9 @@ export default function Pods() {
 
         // Add stats for custom pods
         customPodsData.forEach(pod => {
-          const podData = podStatsData[pod.slug] || {}
           stats[pod.slug] = {
-            members: podData.memberCount || 0,
-            totalProofs: podData.totalProofs || 0,
+            members: memberCounts[pod.slug] || 0,
+            totalProofs: proofCounts[pod.slug] || 0,
             weeklyProofs: weeklyProofs[pod.slug] || 0
           }
         })
