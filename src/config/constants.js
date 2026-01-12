@@ -6,17 +6,24 @@
 
 /**
  * Moderator email addresses with full privileges
- * In production, consider moving this to environment variables or Firestore
+ * Configured via VITE_MODERATOR_EMAILS environment variable (comma-separated)
+ * Falls back to empty array if not configured
  */
-export const MODERATOR_EMAILS = [
-  'divyanshukumar0163@gmail.com'
-]
+export const MODERATOR_EMAILS = (() => {
+  const envEmails = import.meta.env.VITE_MODERATOR_EMAILS
+  if (!envEmails || typeof envEmails !== 'string') return []
+  return envEmails
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean)
+})()
 
 /**
  * Check if an email has moderator privileges
  */
 export const isModerator = (email) => {
   if (!email || typeof email !== 'string') return false
+  if (MODERATOR_EMAILS.length === 0) return false
   return MODERATOR_EMAILS.includes(email.toLowerCase())
 }
 

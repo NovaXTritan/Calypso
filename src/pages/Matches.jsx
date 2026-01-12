@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore'
+import { firestoreOperation, getFirebaseErrorMessage } from '../utils/retry'
 import { Users, Target, Zap, MessageCircle, Sparkles, Search, Filter, TrendingUp, Heart, UserPlus, ChevronRight, Flame, Award, Clock, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Avatar from '../components/Avatar'
@@ -97,12 +98,73 @@ export default function Matches(){
     if (!currentUser) return
 
     try {
-      // Fetch all users
-      const usersSnapshot = await getDocs(collection(db, 'users'))
-      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+      // Only fetch users who share at least one pod with current user
+      // This avoids fetching all users in the system
+      const userPods = currentUser.joinedPods || []
 
-      // Fetch posts to calculate activity
-      const postsSnapshot = await getDocs(collection(db, 'posts'))
+      let allUsers = []
+
+      if (userPods.length > 0) {
+        // Firestore 'array-contains-any' supports up to 10 values
+        // If user has more pods, we batch the queries
+        const podBatches = []
+        for (let i = 0; i < userPods.length; i += 10) {
+          podBatches.push(userPods.slice(i, i + 10))
+        }
+
+        const userSets = new Map()
+
+        for (const podBatch of podBatches) {
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('joinedPods', 'array-contains-any', podBatch),
+            limit(200) // Limit per batch for performance
+          )
+
+          const usersSnapshot = await firestoreOperation(
+            () => getDocs(usersQuery),
+            { operation: 'Fetch users by pods' }
+          )
+
+          usersSnapshot.docs.forEach(doc => {
+            if (doc.id !== currentUser.uid) {
+              userSets.set(doc.id, { id: doc.id, ...doc.data() })
+            }
+          })
+        }
+
+        allUsers = Array.from(userSets.values())
+      } else {
+        // Fallback: fetch limited recent users if no pods joined
+        const recentUsersQuery = query(
+          collection(db, 'users'),
+          orderBy('createdAt', 'desc'),
+          limit(100)
+        )
+
+        const usersSnapshot = await firestoreOperation(
+          () => getDocs(recentUsersQuery),
+          { operation: 'Fetch recent users' }
+        )
+
+        allUsers = usersSnapshot.docs
+          .filter(doc => doc.id !== currentUser.uid)
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+      }
+
+      // Fetch only recent posts (last 30 days) for activity calculation
+      const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000
+      const recentPostsQuery = query(
+        collection(db, 'posts'),
+        where('createdAt', '>=', thirtyDaysAgo),
+        orderBy('createdAt', 'desc'),
+        limit(500) // Cap at 500 recent posts
+      )
+
+      const postsSnapshot = await firestoreOperation(
+        () => getDocs(recentPostsQuery),
+        { operation: 'Fetch recent posts' }
+      )
       const allPosts = postsSnapshot.docs.map(doc => doc.data())
 
       // Use the sophisticated matching algorithm
@@ -121,7 +183,7 @@ export default function Matches(){
 
     } catch (error) {
       trackError(error, { action: 'fetchMatches', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
-      toast.error('Failed to load matches')
+      toast.error(getFirebaseErrorMessage(error))
     } finally {
       setLoading(false)
     }

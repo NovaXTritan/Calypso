@@ -9,7 +9,8 @@ import RevealOnScroll from '../components/RevealOnScroll'
 import GlowCard from '../components/GlowCard'
 import FloatingOrbs from '../components/FloatingOrbs'
 import { db } from '../lib/firebase'
-import { collection, query, getDocs, addDoc, deleteDoc, doc, where } from 'firebase/firestore'
+import { collection, query, getDocs, addDoc, deleteDoc, doc, where, orderBy, limit } from 'firebase/firestore'
+import { firestoreOperation, getFirebaseErrorMessage } from '../utils/retry'
 import {
   Users, TrendingUp, Flame, Plus, Search, X,
   Sparkles, ArrowRight, Crown, Trash2, AlertCircle
@@ -63,41 +64,54 @@ export default function Pods() {
     const fetchData = async () => {
       try {
         // Get member counts from denormalized stats (O(1) instead of O(n))
-        const podStatsData = await getAllPodStats()
+        const podStatsData = await firestoreOperation(
+          () => getAllPodStats(),
+          { operation: 'Get pod stats' }
+        )
 
-        // Get proof counts (still need to scan proofs for weekly activity)
+        // Get only recent proofs (last 7 days) with pagination
+        // This avoids scanning the entire proofs collection
         const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-        const proofsSnapshot = await getDocs(collection(db, 'proofs'))
+        const recentProofsQuery = query(
+          collection(db, 'proofs'),
+          where('createdAt', '>=', weekAgo),
+          orderBy('createdAt', 'desc'),
+          limit(500) // Cap at 500 recent proofs for performance
+        )
+        const recentProofsSnapshot = await firestoreOperation(
+          () => getDocs(recentProofsQuery),
+          { operation: 'Get recent proofs' }
+        )
 
-        const proofCounts = {}
         const weeklyProofs = {}
-
-        proofsSnapshot.docs.forEach(doc => {
+        recentProofsSnapshot.docs.forEach(doc => {
           const proof = doc.data()
           const podSlug = proof.podSlug
           if (podSlug) {
-            proofCounts[podSlug] = (proofCounts[podSlug] || 0) + 1
-            if (proof.createdAt >= weekAgo) {
-              weeklyProofs[podSlug] = (weeklyProofs[podSlug] || 0) + 1
-            }
+            weeklyProofs[podSlug] = (weeklyProofs[podSlug] || 0) + 1
           }
         })
 
         // Combine stats for all pods
+        // Use denormalized stats for member counts and total proofs
         const stats = {}
         defaultPods.forEach(name => {
           const slug = slugify(name)
+          const podData = podStatsData[slug] || {}
           stats[slug] = {
-            members: podStatsData[slug]?.memberCount || 0,
-            totalProofs: proofCounts[slug] || 0,
+            members: podData.memberCount || 0,
+            totalProofs: podData.totalProofs || 0,
             weeklyProofs: weeklyProofs[slug] || 0
           }
         })
 
         setPodStats(stats)
 
-        // Fetch custom pods
-        const customPodsSnapshot = await getDocs(collection(db, 'customPods'))
+        // Fetch custom pods with retry
+        const customPodsSnapshot = await firestoreOperation(
+          () => getDocs(collection(db, 'customPods')),
+          { operation: 'Get custom pods' }
+        )
         const customPodsData = customPodsSnapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
@@ -106,9 +120,10 @@ export default function Pods() {
 
         // Add stats for custom pods
         customPodsData.forEach(pod => {
+          const podData = podStatsData[pod.slug] || {}
           stats[pod.slug] = {
-            members: memberCounts[pod.slug] || 0,
-            totalProofs: proofCounts[pod.slug] || 0,
+            members: podData.memberCount || 0,
+            totalProofs: podData.totalProofs || 0,
             weeklyProofs: weeklyProofs[pod.slug] || 0
           }
         })
@@ -117,6 +132,7 @@ export default function Pods() {
         setPodStats(stats)
       } catch (error) {
         console.error('Error fetching pod data:', error)
+        toast.error(getFirebaseErrorMessage(error))
       } finally {
         setLoading(false)
       }

@@ -197,9 +197,11 @@ export function validateData(schema, data) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       const errors = {};
-      error.errors.forEach(err => {
+      // Zod v4 uses .issues instead of .errors
+      const issues = error.issues || error.errors || [];
+      issues.forEach(err => {
         const path = err.path.join('.');
-        errors[path] = err.message;
+        errors[path || 'general'] = err.message;
       });
       return {
         success: false,
