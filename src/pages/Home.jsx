@@ -4,28 +4,17 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import Card from '../components/Card'
 import Magnetic from '../components/Magnetic'
 import StreakReminder from '../components/StreakReminder'
+import { DailyTip, DAILY_TIPS, StatsCards, QuickActions, ActivityFeed } from '../components/home'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
 import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore'
-import { Flame, Calendar, Target, Trophy, TrendingUp, Users, Clock, ArrowRight, Sparkles, Zap, Star, Award, BookOpen, MessageCircle, Heart, CheckCircle, Lightbulb, RefreshCw } from 'lucide-react'
-import { getUserAchievements, ACHIEVEMENTS, getAchievementProgress } from '../lib/achievements'
+import { Calendar, Target, Users, Clock, ArrowRight, Award, Flame } from 'lucide-react'
+import { getUserAchievements, getAchievementProgress } from '../lib/achievements'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
 
 // Lazy load heavy components
 const BlackHoleCanvas = lazy(() => import('../components/BlackHoleCanvas'))
 const LandingPage = lazy(() => import('../components/LandingPage'))
-
-// Daily tips data
-const DAILY_TIPS = [
-  { icon: Lightbulb, text: "Break big goals into tiny daily actions. 2 minutes is all you need to start.", color: "text-yellow-400" },
-  { icon: Zap, text: "The best time to post a proof is right after you finish learning - capture that momentum!", color: "text-brand-400" },
-  { icon: Heart, text: "React to others' proofs. Building community makes learning stick.", color: "text-pink-400" },
-  { icon: Target, text: "Focus on consistency over intensity. Small daily wins compound.", color: "text-green-400" },
-  { icon: Star, text: "Celebrate small wins. Each proof is evidence of your growth.", color: "text-glow-400" },
-  { icon: Users, text: "Find an accountability partner. You're 65% more likely to reach goals together.", color: "text-purple-400" },
-  { icon: BookOpen, text: "Reflect on what you learned, not just what you did. Insight builds wisdom.", color: "text-blue-400" },
-  { icon: Sparkles, text: "Quality beats quantity. One thoughtful proof beats five rushed ones.", color: "text-cyan-400" }
-]
 
 // Loading fallback for lazy components
 const LoadingFallback = () => (
@@ -182,22 +171,6 @@ export default function Home(){
     setDailyTip(DAILY_TIPS[newIndex])
   }, [tipIndex])
 
-  // Format relative time - memoized callback
-  const formatRelativeTime = useCallback((timestamp) => {
-    if (!timestamp) return ''
-    const now = Date.now()
-    const diff = now - timestamp
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(diff / 3600000)
-    const days = Math.floor(diff / 86400000)
-
-    if (minutes < 1) return 'just now'
-    if (minutes < 60) return `${minutes}m ago`
-    if (hours < 24) return `${hours}h ago`
-    if (days < 7) return `${days}d ago`
-    return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  }, [])
-
   // Format event time - memoized callback
   const formatEventTime = useCallback((timestamp) => {
     if (!timestamp) return ''
@@ -298,94 +271,10 @@ export default function Home(){
         </div>
 
         {/* Daily Tip Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mb-6"
-        >
-          <div className="glass p-4 flex items-center gap-4">
-            <div className={`w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0`}>
-              <dailyTip.icon className={`w-5 h-5 ${dailyTip.color}`} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-medium text-zinc-400">DAILY TIP</span>
-                <Sparkles className="w-3 h-3 text-yellow-400" />
-              </div>
-              <p className="text-sm text-zinc-200">{dailyTip.text}</p>
-            </div>
-            <button
-              onClick={nextTip}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="Next tip"
-            >
-              <RefreshCw className="w-4 h-4 text-zinc-400" />
-            </button>
-          </div>
-        </motion.div>
+        <DailyTip tip={dailyTip} onNextTip={nextTip} />
 
         {/* Stats Row - Streak, Weekly Progress, Total Proofs */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-          <Magnetic className="block">
-            <Card title="Current Streak" className="relative overflow-hidden">
-              <div className="absolute -inset-px rounded-2xl pointer-events-none" style={{boxShadow: userStats.streak >= 7 ? '0 0 60px rgba(255,150,50,0.3)' : 'none'}} />
-              <div className="flex items-center gap-4">
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${userStats.streak >= 7 ? 'bg-gradient-to-br from-orange-500 to-red-500' : userStats.streak >= 3 ? 'bg-gradient-to-br from-orange-400 to-orange-600' : 'bg-white/10'}`}>
-                  <Flame className={`w-8 h-8 ${userStats.streak >= 3 ? 'text-white' : 'text-zinc-400'}`} />
-                </div>
-                <div>
-                  <div className="text-4xl font-bold text-white">{userStats.streak}</div>
-                  <div className="text-sm text-zinc-400">{userStats.streak === 1 ? 'day' : 'days'} in a row</div>
-                </div>
-              </div>
-              {userStats.streak >= 7 && (
-                <div className="mt-3 px-3 py-1.5 bg-orange-500/20 rounded-lg text-xs text-orange-300 text-center">
-                  You're on fire! Keep it going!
-                </div>
-              )}
-              {userStats.streak === 0 && (
-                <Link to="/pods" className="mt-3 block text-center">
-                  <span className="text-sm text-brand-400 hover:text-brand-300">Start your streak today →</span>
-                </Link>
-              )}
-            </Card>
-          </Magnetic>
-
-          <Magnetic className="block">
-            <Card title="This Week">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
-                  <TrendingUp className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <div className="text-4xl font-bold text-white">{userStats.weeklyProofs}</div>
-                  <div className="text-sm text-zinc-400">proofs shared</div>
-                </div>
-              </div>
-              <Link to="/analytics" className="mt-3 block text-center">
-                <span className="text-sm text-brand-400 hover:text-brand-300">View analytics →</span>
-              </Link>
-            </Card>
-          </Magnetic>
-
-          <Magnetic className="block">
-            <Card title="Total Progress">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-glow-400 to-glow-600 flex items-center justify-center">
-                  <Trophy className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <div className="text-4xl font-bold text-white">{userStats.totalProofs}</div>
-                  <div className="text-sm text-zinc-400">total proofs</div>
-                </div>
-              </div>
-              <Link to="/profile" className="mt-3 block text-center">
-                <span className="text-sm text-brand-400 hover:text-brand-300">View profile →</span>
-              </Link>
-            </Card>
-          </Magnetic>
-        </div>
+        <StatsCards userStats={userStats} />
 
         {/* Cards Row 2 - Goals, Leaderboard, Events, Quick Actions */}
         <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -577,126 +466,11 @@ export default function Home(){
           </motion.div>
 
           {/* Activity Feed */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-          >
-            <Card title="Community Activity">
-              {loadingActivity ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="animate-pulse flex items-center gap-3">
-                      <div className="w-8 h-8 bg-zinc-700 rounded-full" />
-                      <div className="flex-1">
-                        <div className="h-3 bg-zinc-700 rounded w-3/4 mb-1" />
-                        <div className="h-2 bg-zinc-800 rounded w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : activityFeed.length > 0 ? (
-                <div className="space-y-3 max-h-64 overflow-y-auto hide-scrollbar">
-                  {activityFeed.slice(0, 5).map((activity) => (
-                    <div key={activity.id} className="flex items-start gap-3 group">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-glow-500 flex items-center justify-center text-xs text-white font-medium flex-shrink-0">
-                        {activity.authorName?.charAt(0).toUpperCase() || '?'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-zinc-300">
-                          <span className="font-medium text-white">{activity.authorName || 'Someone'}</span>
-                          {' '}posted in{' '}
-                          <span className="text-brand-400">{activity.podName || 'a pod'}</span>
-                        </p>
-                        <p className="text-xs text-zinc-500 truncate">{activity.content}</p>
-                        <span className="text-xs text-zinc-600">{formatRelativeTime(activity.createdAt)}</span>
-                      </div>
-                      {activity.reactions && Object.keys(activity.reactions).length > 0 && (
-                        <div className="flex items-center gap-1 text-xs text-zinc-500">
-                          <Heart className="w-3 h-3" />
-                          {Object.values(activity.reactions).reduce((a, b) => a + b.length, 0)}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <MessageCircle className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-                  <p className="text-sm text-zinc-400">No recent activity</p>
-                  <p className="text-xs text-zinc-500 mt-1">Be the first to post a proof today!</p>
-                </div>
-              )}
-              {activityFeed.length > 0 && (
-                <Link to="/pods" className="mt-3 flex items-center justify-center gap-1 text-sm text-brand-400 hover:text-brand-300">
-                  View all activity <ArrowRight className="w-4 h-4" />
-                </Link>
-              )}
-            </Card>
-          </motion.div>
+          <ActivityFeed activities={activityFeed} loading={loadingActivity} />
         </div>
 
         {/* Quick Actions Bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="mt-6"
-        >
-          <div className="glass p-4">
-            <h3 className="text-sm font-medium text-zinc-400 mb-3">QUICK ACTIONS</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <Link
-                to="/pods"
-                className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
-              >
-                <div className="w-10 h-10 rounded-lg bg-brand-500/20 flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-brand-400" />
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-white">Post Proof</span>
-                  <p className="text-xs text-zinc-500">Share your progress</p>
-                </div>
-              </Link>
-              <Link
-                to="/journal"
-                className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
-              >
-                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-white">Journal</span>
-                  <p className="text-xs text-zinc-500">Write a reflection</p>
-                </div>
-              </Link>
-              <Link
-                to="/matches"
-                className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
-              >
-                <div className="w-10 h-10 rounded-lg bg-pink-500/20 flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-pink-400" />
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-white">Find Partner</span>
-                  <p className="text-xs text-zinc-500">Get accountability</p>
-                </div>
-              </Link>
-              <Link
-                to="/leaderboard"
-                className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
-              >
-                <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
-                  <Trophy className="w-5 h-5 text-yellow-400" />
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-white">Leaderboard</span>
-                  <p className="text-xs text-zinc-500">See top learners</p>
-                </div>
-              </Link>
-            </div>
-          </div>
-        </motion.div>
+        <QuickActions />
 
       </div>
     </section>
