@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { db, storage } from '../lib/firebase'
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, getDocs, limit, doc, getDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useDropzone } from 'react-dropzone'
 import { Edit2, Save, X, Upload, Calendar, Zap, Users, Trophy, Target, Clock, TrendingUp, Star, Award, Lock, ChevronRight, Flame, BookOpen, MessageSquare } from 'lucide-react'
@@ -47,22 +47,20 @@ export default function Profile(){
     if (!currentUser) return
 
     try {
-      // Fetch all proofs for the past year (for heatmap)
-      const oneYearAgo = new Date()
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
-
+      // Fetch all proofs by user (simpler query, no composite index needed)
       const allProofsQuery = query(
         collection(db, 'proofs'),
         where('authorId', '==', currentUser.uid),
-        where('createdAt', '>=', oneYearAgo.getTime()),
-        orderBy('createdAt', 'desc'),
-        limit(1000) // Get up to 1000 proofs for heatmap
+        limit(1000)
       )
       const allProofsSnapshot = await getDocs(allProofsQuery)
-      const allProofs = allProofsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+
+      // Sort client-side and filter to last year
+      const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000)
+      const allProofs = allProofsSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(proof => (proof.createdAt || 0) >= oneYearAgo)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 
       // Set heatmap data
       const heatmapActivity = allProofs.map(proof => ({
