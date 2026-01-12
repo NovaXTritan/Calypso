@@ -72,10 +72,17 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col grain">
+      {/* Skip link for keyboard users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-brand-500 focus:text-white focus:rounded-lg focus:outline-none"
+      >
+        Skip to main content
+      </a>
       <CursorRing />
       <NavBar />
       {currentUser && <StreakReminder />}
-      <main id="content" className={`flex-1 ${currentUser ? 'pb-20 md:pb-0' : ''}`}>
+      <main id="main-content" role="main" aria-label="Main content" className={`flex-1 ${currentUser ? 'pb-20 md:pb-0' : ''}`}>
         <AnimatePresence mode="wait">
           <Suspense fallback={<LoadingSpinner />}>
             <Routes location={location} key={location.pathname}>

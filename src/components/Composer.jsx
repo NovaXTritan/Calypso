@@ -542,6 +542,7 @@ function ProofComposer({
               onChange={handleImageSelect}
               className="hidden"
               disabled={isPosting}
+              aria-label="Upload image for your proof"
             />
           </div>
         )}

@@ -58,31 +58,64 @@ export default function Home(){
     prefersReducedMotion ? 0 : index * 0.05
   , [prefersReducedMotion])
 
-  // Fetch next upcoming event
+  // Batch fetch: event, leaderboard, and activity in parallel (reduces RTT)
   useEffect(() => {
     if (!currentUser) return
 
-    const fetchNextEvent = async () => {
+    const fetchHomeData = async () => {
+      const now = Date.now()
+      const weekAgo = now - 7 * 24 * 60 * 60 * 1000
+
+      // Build all queries
+      const eventQuery = query(
+        collection(db, 'events'),
+        where('date', '>', now),
+        orderBy('date', 'asc'),
+        limit(1)
+      )
+
+      const leaderboardQuery = query(
+        collection(db, 'users'),
+        orderBy('streak', 'desc'),
+        limit(5)
+      )
+
+      const activityQuery = query(
+        collection(db, 'proofs'),
+        where('createdAt', '>=', weekAgo),
+        orderBy('createdAt', 'desc'),
+        limit(10)
+      )
+
+      // Execute all queries in parallel
       try {
-        const now = Date.now()
-        const q = query(
-          collection(db, 'events'),
-          where('date', '>', now),
-          orderBy('date', 'asc'),
-          limit(1)
-        )
-        const snapshot = await getDocs(q)
-        if (!snapshot.empty) {
-          setNextEvent({ id: snapshot.docs[0].id, ...snapshot.docs[0].data() })
+        const [eventSnapshot, leaderboardSnapshot, activitySnapshot] = await Promise.all([
+          getDocs(eventQuery).catch(() => null),
+          getDocs(leaderboardQuery).catch(() => ({ docs: [] })),
+          getDocs(activityQuery).catch(() => ({ docs: [] }))
+        ])
+
+        // Process results
+        if (eventSnapshot && !eventSnapshot.empty) {
+          setNextEvent({ id: eventSnapshot.docs[0].id, ...eventSnapshot.docs[0].data() })
         }
+
+        setLeaderboard(leaderboardSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+
+        setActivityFeed(activitySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          type: 'proof'
+        })))
       } catch (error) {
-        console.error('Error fetching event:', error)
+        console.error('Error fetching home data:', error)
       } finally {
         setLoadingEvent(false)
+        setLoadingActivity(false)
       }
     }
 
-    fetchNextEvent()
+    fetchHomeData()
   }, [currentUser])
 
   // Get user stats from currentUser
@@ -96,7 +129,7 @@ export default function Home(){
     }
   }, [currentUser])
 
-  // Fetch weekly proofs count
+  // Real-time listener for weekly proofs count (stays separate for live updates)
   useEffect(() => {
     if (!currentUser?.uid) return
 
@@ -115,57 +148,6 @@ export default function Home(){
 
     return () => unsubscribe()
   }, [currentUser?.uid])
-
-  // Fetch leaderboard (top 5 by streak)
-  useEffect(() => {
-    if (!currentUser) return
-
-    const fetchLeaderboard = async () => {
-      try {
-        const q = query(
-          collection(db, 'users'),
-          orderBy('streak', 'desc'),
-          limit(5)
-        )
-        const snapshot = await getDocs(q)
-        setLeaderboard(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
-      } catch (error) {
-        console.error('Error fetching leaderboard:', error)
-      }
-    }
-
-    fetchLeaderboard()
-  }, [currentUser])
-
-  // Fetch activity feed (recent proofs from all pods)
-  useEffect(() => {
-    if (!currentUser) return
-
-    const fetchActivity = async () => {
-      try {
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-        const q = query(
-          collection(db, 'proofs'),
-          where('createdAt', '>=', weekAgo),
-          orderBy('createdAt', 'desc'),
-          limit(10)
-        )
-        const snapshot = await getDocs(q)
-        const activities = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          type: 'proof'
-        }))
-        setActivityFeed(activities)
-      } catch (error) {
-        console.error('Error fetching activity:', error)
-      } finally {
-        setLoadingActivity(false)
-      }
-    }
-
-    fetchActivity()
-  }, [currentUser])
 
   // Load user achievements
   useEffect(() => {
