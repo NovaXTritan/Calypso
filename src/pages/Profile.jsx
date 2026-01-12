@@ -6,6 +6,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useDropzone } from 'react-dropzone'
 import { Edit2, Save, X, Upload, Calendar, Zap, Users, Trophy, Target, Clock, TrendingUp, Star, Award, Lock, ChevronRight, Flame, BookOpen, MessageSquare } from 'lucide-react'
 import Avatar from '../components/Avatar'
+import GitHubHeatmap from '../components/GitHubHeatmap'
 import toast from 'react-hot-toast'
 import { sanitizeText, sanitizeArray, validateData, profileSchema, debounce } from '../utils/security'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
@@ -29,6 +30,7 @@ export default function Profile(){
   const [achievements, setAchievements] = useState([])
   const [achievementProgress, setAchievementProgress] = useState({})
   const [activityTimeline, setActivityTimeline] = useState([])
+  const [heatmapData, setHeatmapData] = useState([])
   const [activeTab, setActiveTab] = useState('overview') // 'overview', 'achievements', 'activity'
   const [showAllAchievements, setShowAllAchievements] = useState(false)
 
@@ -45,18 +47,32 @@ export default function Profile(){
     if (!currentUser) return
 
     try {
-      // Fetch recent proofs
-      const postsQuery = query(
+      // Fetch all proofs for the past year (for heatmap)
+      const oneYearAgo = new Date()
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+
+      const allProofsQuery = query(
         collection(db, 'posts'),
         where('author', '==', currentUser.uid),
+        where('createdAt', '>=', oneYearAgo.getTime()),
         orderBy('createdAt', 'desc'),
-        limit(20)
+        limit(1000) // Get up to 1000 proofs for heatmap
       )
-      const postsSnapshot = await getDocs(postsQuery)
-      const posts = postsSnapshot.docs.map(doc => ({
+      const allProofsSnapshot = await getDocs(allProofsQuery)
+      const allProofs = allProofsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }))
+
+      // Set heatmap data
+      const heatmapActivity = allProofs.map(proof => ({
+        date: proof.createdAt,
+        count: 1
+      }))
+      setHeatmapData(heatmapActivity)
+
+      // Recent proofs for display (top 20)
+      const posts = allProofs.slice(0, 20)
       setRecentProofs(posts)
 
       // Calculate longest streak from posts
@@ -529,6 +545,20 @@ export default function Profile(){
             <div className="text-sm text-zinc-400">Achievements</div>
           </motion.div>
         </div>
+      </motion.div>
+
+      {/* Activity Heatmap */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mb-8"
+      >
+        <GitHubHeatmap
+          activityData={heatmapData}
+          currentStreak={stats.streak}
+          longestStreak={stats.longestStreak}
+        />
       </motion.div>
 
       {/* Tab Navigation */}
