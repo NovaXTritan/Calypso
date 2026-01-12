@@ -3,6 +3,7 @@ import { pods as PODS, slugify } from './podsData'
 import { db } from './lib/firebase'
 import { doc, updateDoc } from 'firebase/firestore'
 import { trackError, ErrorCategory } from './utils/errorTracking'
+import { incrementMemberCount, decrementMemberCount } from './lib/podStats'
 
 const initialThreads = {}
 const initialPosts = {}
@@ -46,11 +47,15 @@ export const useForum = create((set, get) => ({
   joinPod: async (slug) => {
     const state = get()
     const newMembership = new Set(state.membership)
+
+    // Check if already a member to avoid duplicate increments
+    if (newMembership.has(slug)) return
+
     newMembership.add(slug)
-    
+
     // Update local state immediately (optimistic update)
     set({ membership: newMembership })
-    
+
     // Sync to Firebase if user is logged in
     if (state.userId) {
       try {
@@ -58,6 +63,8 @@ export const useForum = create((set, get) => ({
         await updateDoc(doc(db, 'users', state.userId), {
           joinedPods: membershipArray
         })
+        // Update denormalized member count (best-effort, non-blocking)
+        incrementMemberCount(slug).catch(() => {})
       } catch (error) {
         trackError(error, { action: 'joinPod', slug, userId: state.userId }, 'error', ErrorCategory.FIRESTORE)
         // Rollback on error
@@ -70,11 +77,15 @@ export const useForum = create((set, get) => ({
   leavePod: async (slug) => {
     const state = get()
     const newMembership = new Set(state.membership)
+
+    // Check if actually a member to avoid duplicate decrements
+    if (!newMembership.has(slug)) return
+
     newMembership.delete(slug)
-    
+
     // Update local state immediately (optimistic update)
     set({ membership: newMembership })
-    
+
     // Sync to Firebase if user is logged in
     if (state.userId) {
       try {
@@ -82,6 +93,8 @@ export const useForum = create((set, get) => ({
         await updateDoc(doc(db, 'users', state.userId), {
           joinedPods: membershipArray
         })
+        // Update denormalized member count (best-effort, non-blocking)
+        decrementMemberCount(slug).catch(() => {})
       } catch (error) {
         trackError(error, { action: 'leavePod', slug, userId: state.userId }, 'error', ErrorCategory.FIRESTORE)
         // Rollback on error

@@ -15,71 +15,29 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../lib/firebase'
 import { useAuth } from '../contexts/AuthContext'
-import { 
-  Type, 
-  Link, 
-  Image as ImageIcon, 
-  Send, 
-  X, 
-  Globe, 
+import {
+  Type,
+  Link,
+  Image as ImageIcon,
+  Send,
+  X,
+  Globe,
   Lock,
   Loader2,
   Upload,
   AlertCircle
 } from 'lucide-react'
+import { safeToast, safeString, safeNumber } from '../utils/safe'
+import { sanitizeText } from '../utils/security'
 
-// ============================================
-// SAFE UTILITIES
-// ============================================
-
-// Safe DOMPurify
-let sanitize = (str) => str
-try {
-  const DOMPurify = require('dompurify')
-  sanitize = DOMPurify.sanitize
-} catch {
-  sanitize = (str) => {
+// Use sanitizeText from security.js, fallback to basic escaping
+const sanitize = (str) => {
+  try {
+    return sanitizeText(str)
+  } catch {
     if (typeof str !== 'string') return ''
     return str.replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
-}
-
-// Safe toast
-const safeToast = {
-  success: (msg) => {
-    try {
-      const toast = require('react-hot-toast').default
-      toast.success(msg)
-    } catch {
-      // Toast fallback - silent in production
-    }
-  },
-  error: (msg) => {
-    try {
-      const toast = require('react-hot-toast').default
-      toast.error(msg)
-    } catch {
-      // Toast fallback - silent in production
-    }
-  }
-}
-
-// Safe string
-const safeString = (value, fallback = '') => {
-  if (value === null || value === undefined) return fallback
-  if (typeof value === 'string') return value
-  try {
-    return String(value)
-  } catch {
-    return fallback
-  }
-}
-
-// Safe number
-const safeNumber = (value, fallback = 0) => {
-  if (typeof value === 'number' && !isNaN(value)) return value
-  const parsed = Number(value)
-  return isNaN(parsed) ? fallback : parsed
 }
 
 // URL validation

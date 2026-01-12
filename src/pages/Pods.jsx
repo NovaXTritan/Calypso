@@ -15,9 +15,8 @@ import {
   Sparkles, ArrowRight, Crown, Trash2, AlertCircle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-// Moderator email
-const MODERATOR_EMAIL = 'divyanshukumar0163@gmail.com'
+import { isModerator as checkIsModerator } from '../config/constants'
+import { getAllPodStats } from '../lib/podStats'
 
 // Pod categories for filtering
 const CATEGORIES = [
@@ -57,25 +56,16 @@ export default function Pods() {
   const [newPodDescription, setNewPodDescription] = useState('')
   const [isCreating, setIsCreating] = useState(false)
 
-  const isModerator = currentUser?.email === MODERATOR_EMAIL
+  const isModeratorUser = checkIsModerator(currentUser?.email)
 
   // Fetch pod stats and custom pods
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get all users to count pod memberships
-        const usersSnapshot = await getDocs(collection(db, 'users'))
-        const memberCounts = {}
+        // Get member counts from denormalized stats (O(1) instead of O(n))
+        const podStatsData = await getAllPodStats()
 
-        usersSnapshot.docs.forEach(doc => {
-          const userData = doc.data()
-          const joinedPods = userData.joinedPods || []
-          joinedPods.forEach(podSlug => {
-            memberCounts[podSlug] = (memberCounts[podSlug] || 0) + 1
-          })
-        })
-
-        // Get proof counts
+        // Get proof counts (still need to scan proofs for weekly activity)
         const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
         const proofsSnapshot = await getDocs(collection(db, 'proofs'))
 
@@ -98,7 +88,7 @@ export default function Pods() {
         defaultPods.forEach(name => {
           const slug = slugify(name)
           stats[slug] = {
-            members: memberCounts[slug] || 0,
+            members: podStatsData[slug]?.memberCount || 0,
             totalProofs: proofCounts[slug] || 0,
             weeklyProofs: weeklyProofs[slug] || 0
           }
@@ -183,7 +173,7 @@ export default function Pods() {
 
   // Delete custom pod (moderator only)
   const handleDeletePod = async (podId, podSlug) => {
-    if (!isModerator) return
+    if (!isModeratorUser) return
 
     if (!confirm('Are you sure you want to delete this pod? This cannot be undone.')) return
 
@@ -306,7 +296,7 @@ export default function Pods() {
         </RevealOnScroll>
 
         {/* Moderator Badge */}
-        {isModerator && (
+        {isModeratorUser && (
           <RevealOnScroll delay={150}>
             <div className="mb-6 flex items-center gap-2 px-4 py-2 bg-glow-500/10 border border-glow-500/20 rounded-lg w-fit">
               <Crown className="w-5 h-5 text-glow-500" />
@@ -333,7 +323,7 @@ export default function Pods() {
                     isMember={true}
                     onJoin={handleJoin}
                     onLeave={handleLeave}
-                    isModerator={isModerator}
+                    isModerator={isModeratorUser}
                     onDelete={pod.isCustom ? () => handleDeletePod(pod.id, pod.slug) : null}
                     delay={index * 50}
                   />
@@ -367,7 +357,7 @@ export default function Pods() {
                     isMember={false}
                     onJoin={handleJoin}
                     onLeave={handleLeave}
-                    isModerator={isModerator}
+                    isModerator={isModeratorUser}
                     onDelete={pod.isCustom ? () => handleDeletePod(pod.id, pod.slug) : null}
                     delay={index * 50}
                   />

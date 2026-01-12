@@ -20,8 +20,7 @@ import {
   Crown,
   Medal
 } from 'lucide-react'
-
-const MODERATOR_EMAIL = 'divyanshukumar0163@gmail.com'
+import { isModerator as checkIsModerator } from '../config/constants'
 
 export default function WeeklyChallenges({ userId, userEmail, userName, podSlug, podName }) {
   const [challenges, setChallenges] = useState([])
@@ -31,7 +30,7 @@ export default function WeeklyChallenges({ userId, userEmail, userName, podSlug,
   const [selectedChallenge, setSelectedChallenge] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
 
-  const isModerator = userEmail === MODERATOR_EMAIL
+  const isModeratorUser = checkIsModerator(userEmail)
 
   // Load active challenges
   useEffect(() => {
@@ -120,7 +119,7 @@ export default function WeeklyChallenges({ userId, userEmail, userName, podSlug,
             Weekly Challenges
           </span>
         </h3>
-        {isModerator && (
+        {isModeratorUser && (
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-glow-500/10 hover:bg-glow-500/20 text-glow-400 text-xs rounded-lg transition-all border border-glow-500/20"
@@ -143,7 +142,7 @@ export default function WeeklyChallenges({ userId, userEmail, userName, podSlug,
           <Trophy className="w-8 h-8 text-night-500 mx-auto mb-2" />
           <p className="text-sm text-night-300">No active challenges</p>
           <p className="text-xs text-night-400 mt-1">
-            {isModerator ? 'Create a challenge to get started!' : 'Check back soon!'}
+            {isModeratorUser ? 'Create a challenge to get started!' : 'Check back soon!'}
           </p>
         </div>
       ) : (

@@ -1,5 +1,13 @@
-export const pods = [
-  "Entrepreneurship","AI","Consulting","Finance","Analytics","Marketing","Astrophysics","Psychology","Neuroeconomics","Economics","Computer Science","Statistics + Risk + Actuary","Social Media","Literary","Robotics","Cosmology","BioTech",
-  "Data Science","Product Management","UX/UI Design","Cybersecurity","Cloud & DevOps","Blockchain","Game Development","Healthcare","EdTech","Climate Tech","Mathematics","Law & Policy","Music & Audio"
-];
-export const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+// src/podsData.js - Backward compatibility layer
+// Re-exports from centralized constants for legacy support
+
+import { PODS_DATA, slugify, getAllPodNames } from './config/constants'
+
+// Export pod names as array (legacy format)
+export const pods = getAllPodNames()
+
+// Re-export slugify
+export { slugify }
+
+// Re-export PODS_DATA for components that need full pod info
+export { PODS_DATA }

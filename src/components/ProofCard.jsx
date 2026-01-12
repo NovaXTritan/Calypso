@@ -43,6 +43,18 @@ import {
   canVerify,
   isVerifiedByUser
 } from '../lib/verification'
+import {
+  safeToast,
+  safeString,
+  safeSlice,
+  safeCharAt,
+  safeArray,
+  safeIncludes,
+  safeLength,
+  safeNumber
+} from '../utils/safe'
+import { sanitizeText } from '../utils/security'
+import { isModerator as checkIsModerator } from '../config/constants'
 
 // Reaction types with their icons and colors
 const REACTION_TYPES = {
@@ -52,18 +64,11 @@ const REACTION_TYPES = {
   helpful: { icon: ThumbsUp, label: 'Helpful', color: 'green', activeColor: 'bg-green-500/20 text-green-400' }
 }
 
-// ============================================
-// SAFE UTILITIES - Won't throw errors
-// ============================================
-
-// Safe DOMPurify import with fallback
-let sanitize = (str) => str
-try {
-  const DOMPurify = require('dompurify')
-  sanitize = DOMPurify.sanitize
-} catch {
-  // Fallback: basic sanitization if DOMPurify not available
-  sanitize = (str) => {
+// Use sanitizeText from security.js, fallback to basic escaping
+const sanitize = (str) => {
+  try {
+    return sanitizeText(str)
+  } catch {
     if (typeof str !== 'string') return ''
     return str
       .replace(/</g, '&lt;')
@@ -71,84 +76,6 @@ try {
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#x27;')
   }
-}
-
-// Safe toast with fallback
-const safeToast = {
-  success: (msg) => {
-    try {
-      const toast = require('react-hot-toast').default
-      toast.success(msg)
-    } catch {
-      // Toast fallback - silent in production
-    }
-  },
-  error: (msg) => {
-    try {
-      const toast = require('react-hot-toast').default
-      toast.error(msg)
-    } catch {
-      // Toast fallback - silent in production
-    }
-  }
-}
-
-// Safe string operations
-const safeString = (value, fallback = '') => {
-  if (value === null || value === undefined) return fallback
-  if (typeof value === 'string') return value
-  try {
-    return String(value)
-  } catch {
-    return fallback
-  }
-}
-
-const safeSlice = (str, start, end) => {
-  try {
-    const s = safeString(str)
-    return s.slice(start, end)
-  } catch {
-    return ''
-  }
-}
-
-const safeCharAt = (str, index) => {
-  try {
-    const s = safeString(str)
-    return s.charAt(index) || ''
-  } catch {
-    return ''
-  }
-}
-
-// Safe array operations
-const safeArray = (value) => {
-  if (Array.isArray(value)) return value
-  return []
-}
-
-const safeIncludes = (arr, value) => {
-  try {
-    return safeArray(arr).includes(value)
-  } catch {
-    return false
-  }
-}
-
-const safeLength = (arr) => {
-  try {
-    return safeArray(arr).length
-  } catch {
-    return 0
-  }
-}
-
-// Safe number operations
-const safeNumber = (value, fallback = 0) => {
-  if (typeof value === 'number' && !isNaN(value)) return value
-  const parsed = Number(value)
-  return isNaN(parsed) ? fallback : parsed
 }
 
 // Format relative time - SAFE version
@@ -195,9 +122,6 @@ const isValidUrl = (string) => {
 // ============================================
 // COMPONENT
 // ============================================
-
-// Moderator email
-const MODERATOR_EMAIL = 'divyanshukumar0163@gmail.com'
 
 function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, showPodBadge = false }) {
   // Defensive: ensure proof exists
@@ -541,8 +465,8 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
   }, [isVerifying, currentUserId, userHasVerified, proofId, currentUserName])
 
   const isAuthor = currentUserId && authorId && currentUserId === authorId
-  const isModerator = currentUserEmail === MODERATOR_EMAIL
-  const canModify = isAuthor || isModerator
+  const isModeratorUser = checkIsModerator(currentUserEmail)
+  const canModify = isAuthor || isModeratorUser
 
   // ============================================
   // SAFE RENDER FUNCTIONS
@@ -785,7 +709,7 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
                       className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
-                      {isModerator && !isAuthor ? 'Delete (Mod)' : 'Delete'}
+                      {isModeratorUser && !isAuthor ? 'Delete (Mod)' : 'Delete'}
                     </button>
                     <div className="border-t border-white/10" />
                   </>

@@ -37,44 +37,9 @@ import ProofCard from '../components/ProofCard'
 import AccountabilityPartner from '../components/AccountabilityPartner'
 import CoworkingRoom from '../components/CoworkingRoom'
 import WeeklyChallenges from '../components/WeeklyChallenges'
-
-// Moderator email
-const MODERATOR_EMAIL = 'divyanshukumar0163@gmail.com'
-
-// ============================================
-// POD DATA
-// ============================================
-
-const PODS_DATA = [
-  { slug: 'dsa', name: 'DSA & Algorithms', description: 'Data structures and algorithmic problem solving' },
-  { slug: 'webdev', name: 'Web Development', description: 'Frontend, backend, and full-stack development' },
-  { slug: 'ai-ml', name: 'AI & Machine Learning', description: 'Artificial intelligence and machine learning' },
-  { slug: 'ai', name: 'AI', description: 'Artificial intelligence and machine learning' },
-  { slug: 'placement', name: 'Placement Prep', description: 'Interview preparation and career guidance' },
-  { slug: 'open-source', name: 'Open Source', description: 'Contributing to open source projects' },
-  { slug: 'entrepreneurship', name: 'Entrepreneurship', description: 'Building startups and businesses' },
-  { slug: 'data-science', name: 'Data Science', description: 'Data analysis and visualization' },
-  { slug: 'blockchain', name: 'Blockchain', description: 'Web3 and decentralized technologies' },
-  { slug: 'cybersecurity', name: 'Cybersecurity', description: 'Security and ethical hacking' },
-]
-
-// ============================================
-// SAFE UTILITIES
-// ============================================
-
-const safeString = (value, fallback = '') => {
-  if (value === null || value === undefined) return fallback
-  if (typeof value === 'string') return value
-  try { return String(value) } catch { return fallback }
-}
-
-const safeNumber = (value, fallback = 0) => {
-  if (typeof value === 'number' && !isNaN(value)) return value
-  const parsed = Number(value)
-  return isNaN(parsed) ? fallback : parsed
-}
-
-const safeArray = (value) => Array.isArray(value) ? value : []
+import { safeString, safeNumber, safeArray } from '../utils/safe'
+import { isModerator as checkIsModerator, PODS_DATA } from '../config/constants'
+import { getPodMemberCount } from '../lib/podStats'
 
 // ============================================
 // ERROR BOUNDARY
@@ -196,7 +161,7 @@ function PodForumContent() {
   const [membershipLoading, setMembershipLoading] = useState(false)
   const [customPodData, setCustomPodData] = useState(null)
 
-  const isModerator = currentUser?.email === MODERATOR_EMAIL
+  const isModeratorUser = checkIsModerator(currentUser?.email)
 
   // Find pod from local data or fetch custom pod
   const defaultPod = PODS_DATA.find(p => p.slug === slug)
@@ -231,23 +196,13 @@ function PodForumContent() {
     }
   }, [slug, defaultPod])
 
-  // Fetch accurate member count
+  // Fetch member count from denormalized stats (O(1) instead of O(n))
   useEffect(() => {
     if (!slug) return
 
     const fetchMemberCount = async () => {
       try {
-        const usersSnapshot = await getDocs(collection(db, 'users'))
-        let memberCount = 0
-
-        usersSnapshot.docs.forEach(doc => {
-          const userData = doc.data()
-          const joinedPods = userData.joinedPods || []
-          if (joinedPods.includes(slug)) {
-            memberCount++
-          }
-        })
-
+        const memberCount = await getPodMemberCount(slug)
         setPodStats(prev => ({ ...prev, members: memberCount }))
       } catch (err) {
         console.error('Error fetching member count:', err)
@@ -447,7 +402,7 @@ function PodForumContent() {
                   <h1 className="text-3xl font-bold text-white">
                     {safeString(pod.name, 'Pod')}
                   </h1>
-                  {isModerator && (
+                  {isModeratorUser && (
                     <span className="flex items-center gap-1 px-2 py-1 bg-glow-500/20 rounded-full text-xs text-glow-500">
                       <Crown className="w-3 h-3" />
                       Mod
