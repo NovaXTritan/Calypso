@@ -26,6 +26,7 @@ const MODERATOR_EMAIL = 'divyanshukumar0163@gmail.com'
 export default function WeeklyChallenges({ userId, userEmail, userName, podSlug, podName }) {
   const [challenges, setChallenges] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [selectedChallenge, setSelectedChallenge] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -36,9 +37,16 @@ export default function WeeklyChallenges({ userId, userEmail, userName, podSlug,
   useEffect(() => {
     const loadChallenges = async () => {
       setLoading(true)
-      const activeChallenges = await getActiveChallenges(podSlug)
-      setChallenges(activeChallenges)
-      setLoading(false)
+      setError(null)
+      try {
+        const activeChallenges = await getActiveChallenges(podSlug)
+        setChallenges(activeChallenges)
+      } catch (err) {
+        console.error('Error loading challenges:', err)
+        setError(err)
+      } finally {
+        setLoading(false)
+      }
     }
 
     loadChallenges()
@@ -124,7 +132,13 @@ export default function WeeklyChallenges({ userId, userEmail, userName, podSlug,
       </div>
 
       {/* Challenges List */}
-      {challenges.length === 0 ? (
+      {error ? (
+        <div className="text-center py-6">
+          <Trophy className="w-8 h-8 text-night-500 mx-auto mb-2" />
+          <p className="text-sm text-night-300">Coming soon</p>
+          <p className="text-xs text-night-400 mt-1">Weekly challenges are being set up</p>
+        </div>
+      ) : challenges.length === 0 ? (
         <div className="text-center py-6">
           <Trophy className="w-8 h-8 text-night-500 mx-auto mb-2" />
           <p className="text-sm text-night-300">No active challenges</p>

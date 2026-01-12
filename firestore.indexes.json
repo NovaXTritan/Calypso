@@ -1,0 +1,57 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "coworkingRooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "podSlug", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "isPrivate", "order": "ASCENDING" },
+        { "fieldPath": "activeCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "coworkingRooms",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "isPrivate", "order": "ASCENDING" },
+        { "fieldPath": "activeCount", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "challenges",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "podSlug", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "endDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "proofs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "authorId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "proofs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "podSlug", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

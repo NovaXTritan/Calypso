@@ -42,7 +42,8 @@ export default function CoworkingRoom({ userId, userEmail, userName, userPhoto, 
   const [showRoomView, setShowRoomView] = useState(false)
   const [newMessage, setNewMessage] = useState('')
   const [myStatus, setMyStatus] = useState(SESSION_STATUS.WORKING)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [focusTimer, setFocusTimer] = useState(0) // in seconds
   const [isTimerRunning, setIsTimerRunning] = useState(false)
   const messagesEndRef = useRef(null)
@@ -51,9 +52,20 @@ export default function CoworkingRoom({ userId, userEmail, userName, userPhoto, 
 
   // Subscribe to active rooms
   useEffect(() => {
-    const unsubscribe = subscribeToRooms(podSlug, (roomsData) => {
-      setRooms(roomsData)
-    })
+    setLoading(true)
+    setError(null)
+
+    const unsubscribe = subscribeToRooms(
+      podSlug,
+      (roomsData) => {
+        setRooms(roomsData)
+        setLoading(false)
+      },
+      (err) => {
+        setError(err)
+        setLoading(false)
+      }
+    )
 
     return () => unsubscribe()
   }, [podSlug])
@@ -374,8 +386,19 @@ export default function CoworkingRoom({ userId, userEmail, userName, userPhoto, 
         </button>
       </div>
 
-      {/* Active Rooms List */}
-      {rooms.length === 0 ? (
+      {/* Loading State */}
+      {loading ? (
+        <div className="text-center py-6">
+          <div className="w-8 h-8 border-2 border-brand-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <p className="text-sm text-night-400">Loading rooms...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-6">
+          <Coffee className="w-8 h-8 text-night-500 mx-auto mb-2" />
+          <p className="text-sm text-night-300">Coming soon</p>
+          <p className="text-xs text-night-400 mt-1">Co-working rooms are being set up</p>
+        </div>
+      ) : rooms.length === 0 ? (
         <div className="text-center py-6">
           <Coffee className="w-8 h-8 text-night-500 mx-auto mb-2" />
           <p className="text-sm text-night-300">No active rooms</p>

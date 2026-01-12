@@ -259,7 +259,7 @@ export async function sendRoomMessage(roomId, userId, message, userData) {
 }
 
 // Get active rooms (for browsing)
-export function subscribeToRooms(podSlug, callback) {
+export function subscribeToRooms(podSlug, callback, onError) {
   let roomsQuery
 
   if (podSlug) {
@@ -279,13 +279,26 @@ export function subscribeToRooms(podSlug, callback) {
     )
   }
 
-  return onSnapshot(roomsQuery, (snapshot) => {
-    const rooms = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
-    callback(rooms)
-  })
+  return onSnapshot(
+    roomsQuery,
+    (snapshot) => {
+      const rooms = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      callback(rooms)
+    },
+    (error) => {
+      console.error('Error subscribing to rooms:', error)
+      // Check for missing index error
+      if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+        console.warn('CoworkingRooms: Firestore index required. Check console for index creation link.')
+      }
+      // Return empty array on error
+      callback([])
+      if (onError) onError(error)
+    }
+  )
 }
 
 // Subscribe to a single room (for participants)

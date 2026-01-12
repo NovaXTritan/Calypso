@@ -282,6 +282,11 @@ export async function getActiveChallenges(podSlug) {
     return challenges
   } catch (error) {
     console.error('Error getting challenges:', error)
+    // Check for missing index error and log the link
+    if (error.code === 'failed-precondition' || error.message?.includes('index')) {
+      console.warn('WeeklyChallenges: Firestore index required. Check console for index creation link.')
+      console.info('Index link:', error.message)
+    }
     return []
   }
 }
