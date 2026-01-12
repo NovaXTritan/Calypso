@@ -49,10 +49,10 @@ export default function Analytics() {
     try {
       setLoading(true)
 
-      // Fetch posts by current user
+      // Fetch proofs by current user (proofs collection with authorId field)
       const postsQuery = query(
-        collection(db, 'posts'),
-        where('author', '==', currentUser.uid)
+        collection(db, 'proofs'),
+        where('authorId', '==', currentUser.uid)
       )
       const postsSnapshot = await getDocs(postsQuery)
       const posts = postsSnapshot.docs.map(doc => ({

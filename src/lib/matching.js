@@ -168,12 +168,12 @@ export function calculateMatches(currentUser, allUsers, allPosts) {
   if (!currentUser) return []
 
   // Get current user's posts
-  const myPosts = allPosts.filter(p => p.author === currentUser.uid)
+  const myPosts = allPosts.filter(p => p.authorId === currentUser.uid)
 
   return allUsers
     .filter(user => user.uid !== currentUser.uid)
     .map(user => {
-      const userPosts = allPosts.filter(p => p.author === user.uid)
+      const userPosts = allPosts.filter(p => p.authorId === user.uid)
 
       // Calculate individual scores
       const podScore = jaccardSimilarity(

@@ -107,10 +107,10 @@ export default function Matches(){
         .filter(doc => doc.id !== currentUser.uid)
         .map(doc => ({ id: doc.id, ...doc.data() }))
 
-      // Fetch posts to calculate activity (with limit)
+      // Fetch proofs to calculate activity (with limit)
       const postsSnapshot = await firestoreOperation(
-        () => getDocs(query(collection(db, 'posts'), limit(500))),
-        { operation: 'Fetch posts' }
+        () => getDocs(query(collection(db, 'proofs'), limit(500))),
+        { operation: 'Fetch proofs' }
       )
       const allPosts = postsSnapshot.docs.map(doc => doc.data())
 

@@ -52,8 +52,8 @@ export default function Profile(){
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
 
       const allProofsQuery = query(
-        collection(db, 'posts'),
-        where('author', '==', currentUser.uid),
+        collection(db, 'proofs'),
+        where('authorId', '==', currentUser.uid),
         where('createdAt', '>=', oneYearAgo.getTime()),
         orderBy('createdAt', 'desc'),
         limit(1000) // Get up to 1000 proofs for heatmap

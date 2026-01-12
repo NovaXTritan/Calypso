@@ -134,7 +134,7 @@ export const ACHIEVEMENTS = {
 }
 
 // Check and award achievements
-export async function checkAchievements(userId, stats) {
+export async function checkAchievements(userId, stats, context = {}) {
   try {
     const userRef = doc(db, 'users', userId)
     const userDoc = await getDoc(userRef)
@@ -169,6 +169,22 @@ export async function checkAchievements(userId, stats) {
       const achievement = ACHIEVEMENTS[key]
       if (!existingAchievements.includes(achievement.id) && stats.podsJoined >= achievement.requirement) {
         newAchievements.push(achievement)
+      }
+    }
+
+    // Check time-based achievements when posting a proof
+    if (context.justPostedProof) {
+      const now = new Date()
+      const hour = now.getHours()
+
+      // Early Bird: posted before 8 AM
+      if (hour < 8 && !existingAchievements.includes(ACHIEVEMENTS.EARLY_BIRD.id)) {
+        newAchievements.push(ACHIEVEMENTS.EARLY_BIRD)
+      }
+
+      // Night Owl: posted after 11 PM
+      if (hour >= 23 && !existingAchievements.includes(ACHIEVEMENTS.NIGHT_OWL.id)) {
+        newAchievements.push(ACHIEVEMENTS.NIGHT_OWL)
       }
     }
 

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { safeToast, safeString, safeNumber } from '../utils/safe'
 import { sanitizeText } from '../utils/security'
+import { checkAchievements } from '../lib/achievements'
 
 // Use sanitizeText from security.js, fallback to basic escaping
 const sanitize = (str) => {
@@ -314,6 +315,15 @@ function ProofComposer({
         streak: streak,
         lastProofDate: serverTimestamp()
       }).catch(err => trackError(err, { action: 'updateStats', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE))
+
+      // Check for new achievements (fire and forget)
+      checkAchievements(user.uid, {
+        streak: streak,
+        totalProofs: (profile?.totalProofs || 0) + 1,
+        podsJoined: profile?.joinedPods?.length || 0
+      }, { justPostedProof: true }).catch(err =>
+        trackError(err, { action: 'checkAchievements', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE)
+      )
 
       // Reset form
       setContent('')

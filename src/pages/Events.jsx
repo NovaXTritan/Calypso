@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
 import { collection, getDocs, doc, updateDoc, arrayUnion, arrayRemove, orderBy, query, addDoc } from 'firebase/firestore'
-import { Calendar, Clock, Users, MapPin, ExternalLink, Search, Filter, Plus, X, Tag, Bell, BellOff, Sparkles, ChevronDown, Video, BookOpen, MessageCircle, Zap } from 'lucide-react'
+import { Calendar, Clock, Users, MapPin, ExternalLink, Search, Filter, Plus, X, Tag, Bell, BellOff, Sparkles, ChevronDown, Video, BookOpen, MessageCircle, Zap, ArrowRight } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
+import SEO from '../components/SEO'
 
 // Event categories with icons and colors
 const EVENT_CATEGORIES = [
@@ -327,6 +328,12 @@ export default function Events(){
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12">
+      <SEO
+        title="Events"
+        description="Join community events, workshops, and live sessions. Connect with peers and learn together in real-time."
+        path="/events"
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -436,11 +443,108 @@ export default function Events(){
           <div className="glass p-8 rounded-2xl text-center">
             <Calendar className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
             <p className="text-zinc-400 mb-2">No upcoming events found</p>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-zinc-500 mb-6">
               {searchQuery || selectedCategory !== 'all' || showMyEvents
                 ? 'Try adjusting your filters'
                 : 'Be the first to create one!'}
             </p>
+
+            {/* Event suggestions when no filters active */}
+            {!searchQuery && selectedCategory === 'all' && !showMyEvents && (
+              <div className="mt-4 space-y-3">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-3">Ideas to get started</p>
+                <div className="grid sm:grid-cols-2 gap-3 max-w-lg mx-auto">
+                  <button
+                    onClick={() => {
+                      setNewEvent(prev => ({
+                        ...prev,
+                        title: 'Weekly Co-working Session',
+                        description: 'Work together in a focused virtual room. Share progress and stay accountable.',
+                        category: 'coworking',
+                        duration: 120
+                      }))
+                      setShowCreateModal(true)
+                    }}
+                    className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-left transition-colors group"
+                  >
+                    <div className="p-2 bg-green-500/20 rounded-lg">
+                      <Users className="w-4 h-4 text-green-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">Co-working Session</div>
+                      <div className="text-xs text-zinc-500">Work together virtually</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNewEvent(prev => ({
+                        ...prev,
+                        title: 'Skill Share: ',
+                        description: 'Share your expertise with the community in a live workshop.',
+                        category: 'workshop',
+                        duration: 60
+                      }))
+                      setShowCreateModal(true)
+                    }}
+                    className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-left transition-colors group"
+                  >
+                    <div className="p-2 bg-purple-500/20 rounded-lg">
+                      <BookOpen className="w-4 h-4 text-purple-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">Skill Share</div>
+                      <div className="text-xs text-zinc-500">Teach something you know</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNewEvent(prev => ({
+                        ...prev,
+                        title: 'Weekly Challenge Kickoff',
+                        description: 'Start a new weekly challenge together. Set goals and hold each other accountable.',
+                        category: 'challenge',
+                        duration: 30
+                      }))
+                      setShowCreateModal(true)
+                    }}
+                    className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-left transition-colors group"
+                  >
+                    <div className="p-2 bg-orange-500/20 rounded-lg">
+                      <Zap className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">Challenge Kickoff</div>
+                      <div className="text-xs text-zinc-500">Start a group challenge</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setNewEvent(prev => ({
+                        ...prev,
+                        title: 'Open Discussion: ',
+                        description: 'An open discussion about topics that matter to the community.',
+                        category: 'discussion',
+                        duration: 45
+                      }))
+                      setShowCreateModal(true)
+                    }}
+                    className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-left transition-colors group"
+                  >
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                      <MessageCircle className="w-4 h-4 text-blue-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">Open Discussion</div>
+                      <div className="text-xs text-zinc-500">Talk about what matters</div>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">

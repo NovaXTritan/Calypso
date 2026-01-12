@@ -40,6 +40,7 @@ import WeeklyChallenges from '../components/WeeklyChallenges'
 import { safeString, safeNumber, safeArray } from '../utils/safe'
 import { isModerator as checkIsModerator, PODS_DATA } from '../config/constants'
 import { getPodMemberCount } from '../lib/podStats'
+import { checkAchievements } from '../lib/achievements'
 
 // ============================================
 // ERROR BOUNDARY
@@ -353,6 +354,7 @@ function PodForumContent() {
     try {
       const currentPods = safeArray(currentUser?.joinedPods)
       let newPods
+      const isJoining = !isMember
 
       if (isMember) {
         newPods = currentPods.filter(p => p !== slug)
@@ -361,6 +363,17 @@ function PodForumContent() {
       }
 
       await updateUserProfile({ joinedPods: newPods })
+
+      // Check for pod achievements when joining (not leaving)
+      if (isJoining) {
+        checkAchievements(currentUser.uid, {
+          streak: currentUser.streak || 0,
+          totalProofs: currentUser.totalProofs || 0,
+          podsJoined: newPods.length
+        }).catch(err =>
+          trackError(err, { action: 'checkAchievements', userId: currentUser.uid }, 'warn', ErrorCategory.FIRESTORE)
+        )
+      }
     } catch (err) {
       trackError(err, { action: isMember ? 'leavePod' : 'joinPod', slug, userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)
       alert('Failed to update membership. Please try again.')

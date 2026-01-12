@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Scroll, Anchor, Heart, Shield, Compass, Mountain } from 'lucide-react'
+import { Scroll, Anchor, Heart, Shield, Compass, Mountain, ArrowRight } from 'lucide-react'
+import SEO from '../components/SEO'
 
 export default function Constitution() {
   useEffect(() => {
@@ -67,6 +69,12 @@ export default function Constitution() {
 
   return (
     <div className="min-h-screen">
+      <SEO
+        title="Constitution"
+        description="The Ethical Constitution of Cosmos - Our foundational principles and unwavering commitment to human dignity. Learn what Cosmos stands for and how we approach accountability."
+        path="/constitution"
+      />
+
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-brand-400/5 via-transparent to-transparent"></div>
@@ -254,6 +262,27 @@ export default function Constitution() {
           people will not say "it made me successful."<br/>
           They will say "it made me solid."
         </ConstitutionQuote>
+
+        {/* Call to Action */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-12 p-8 glass-card rounded-2xl text-center border border-brand-400/20"
+        >
+          <h3 className="text-2xl font-bold mb-4">Ready to Begin?</h3>
+          <p className="text-zinc-400 mb-6 max-w-xl mx-auto">
+            If these principles resonate with you, join us in building something meaningful.
+            Cosmos is for those who are ready to hold themselves accountable.
+          </p>
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-brand-500 hover:bg-brand-600 rounded-xl font-medium transition-colors"
+          >
+            Enter Cosmos
+            <ArrowRight size={18} />
+          </Link>
+        </motion.div>
 
         {/* Footer */}
         <motion.div
