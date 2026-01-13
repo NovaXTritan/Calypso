@@ -115,10 +115,35 @@ function RingBurst({ delay, prefersReducedMotion }) {
 
 // Main celebration overlay
 export default function CelebrationOverlay() {
-  const { celebration, isActive, dismiss } = useCelebration()
+  const { celebration, isActive, dismiss, celebrate } = useCelebration()
   const prefersReducedMotion = usePrefersReducedMotion()
   const [shake, setShake] = useState(false)
   const containerRef = useRef(null)
+
+  // DEV: Test celebrations with keyboard shortcuts (Ctrl+Shift+1-5)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey) {
+        const tests = {
+          '1': 'FIRST_PROOF',
+          '2': 'STREAK_7',
+          '3': 'STREAK_30',
+          '4': 'STREAK_100',
+          '5': 'ACHIEVEMENT'
+        }
+        if (tests[e.key]) {
+          e.preventDefault()
+          celebrate(tests[e.key], tests[e.key] === 'ACHIEVEMENT' ? {
+            title: 'Early Bird',
+            subtitle: 'Posted a proof before 8 AM',
+            icon: '🌅'
+          } : {})
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [celebrate])
 
   // Trigger screen shake
   useEffect(() => {
