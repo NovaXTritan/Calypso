@@ -44,6 +44,34 @@ export default function GitHubHeatmap({ activityData = [], currentStreak: propSt
     return `${year}-${month}-${day}`
   }
 
+  // Calculate stats from actual data - MUST be before gridData since getActivityLevel uses maxInDay
+  const stats = useMemo(() => {
+    let totalActivity = 0
+    let activeDays = 0
+    let maxInDay = 0
+
+    activityMap.forEach(count => {
+      totalActivity += count
+      activeDays++
+      if (count > maxInDay) maxInDay = count
+    })
+
+    return { totalActivity, activeDays, maxInDay }
+  }, [activityMap])
+
+  // Activity level (0-4) based on relative activity - uses stats.maxInDay
+  function getActivityLevel(count) {
+    if (count === 0) return 0
+    if (stats.maxInDay <= 1) {
+      return count >= 1 ? 2 : 0
+    }
+    const ratio = count / stats.maxInDay
+    if (ratio <= 0.25) return 1
+    if (ratio <= 0.5) return 2
+    if (ratio <= 0.75) return 3
+    return 4
+  }
+
   // Generate grid data for the past 53 weeks (GitHub shows ~1 year)
   const { gridData, monthLabels } = useMemo(() => {
     const today = new Date()
@@ -104,22 +132,7 @@ export default function GitHubHeatmap({ activityData = [], currentStreak: propSt
     }
 
     return { gridData: grid, monthLabels: months }
-  }, [activityMap])
-
-  // Calculate stats from actual data
-  const stats = useMemo(() => {
-    let totalActivity = 0
-    let activeDays = 0
-    let maxInDay = 0
-
-    activityMap.forEach(count => {
-      totalActivity += count
-      activeDays++
-      if (count > maxInDay) maxInDay = count
-    })
-
-    return { totalActivity, activeDays, maxInDay }
-  }, [activityMap])
+  }, [activityMap, stats])
 
   // Calculate streaks from grid data (more accurate than props)
   const { currentStreak, longestStreak, weeklyAvg, thisWeekCount } = useMemo(() => {
@@ -221,19 +234,6 @@ export default function GitHubHeatmap({ activityData = [], currentStreak: propSt
       thisWeekCount
     }
   }, [gridData, activityMap, propStreak, propLongestStreak])
-
-  // Activity level (0-4) based on relative activity
-  function getActivityLevel(count) {
-    if (count === 0) return 0
-    if (stats.maxInDay <= 1) {
-      return count >= 1 ? 2 : 0
-    }
-    const ratio = count / stats.maxInDay
-    if (ratio <= 0.25) return 1
-    if (ratio <= 0.5) return 2
-    if (ratio <= 0.75) return 3
-    return 4
-  }
 
   // Color classes based on activity level
   function getColorClass(level, isToday = false) {
