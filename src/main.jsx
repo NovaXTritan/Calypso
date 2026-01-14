@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react'
+import React, { Suspense, lazy, useMemo } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -13,6 +13,7 @@ import Footer from './components/Footer'
 import BottomNav from './components/BottomNav'
 import CursorRing from './components/CursorRing'
 import StreakReminder from './components/StreakReminder'
+import useIsTouchDevice from './hooks/useIsTouchDevice'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -35,11 +36,18 @@ const Constitution = lazy(() => import('./pages/Constitution'))
 const Chat = lazy(() => import('./pages/Chat'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 
-// Page transition variants
+// Page transition variants - desktop
 const pageVariants = {
   initial: { opacity: 0, y: 8 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -8 }
+}
+
+// Simpler/faster variants for mobile
+const mobilePageVariants = {
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 }
 }
 
 // Loading spinner component
@@ -53,15 +61,22 @@ function LoadingSpinner() {
   )
 }
 
-// Animated page wrapper
+// Animated page wrapper - uses simpler animations on mobile
 function AnimatedPage({ children }) {
+  const isMobile = useIsTouchDevice()
+
+  const variants = useMemo(() =>
+    isMobile ? mobilePageVariants : pageVariants,
+    [isMobile]
+  )
+
   return (
     <motion.div
-      variants={pageVariants}
+      variants={variants}
       initial="initial"
       animate="animate"
       exit="exit"
-      transition={{ duration: 0.2, ease: 'easeOut' }}
+      transition={{ duration: isMobile ? 0.1 : 0.2, ease: 'easeOut' }}
     >
       {children}
     </motion.div>

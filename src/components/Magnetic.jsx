@@ -1,12 +1,19 @@
 import React, { useEffect, useRef } from 'react'
+import useIsTouchDevice from '../hooks/useIsTouchDevice'
 
 /**
  * Magnetic wrapper: mildly attracts to the cursor on hover.
+ * Disabled on touch devices to save resources.
  * Usage: <Magnetic strength={0.25}><button>Explore Pods</button></Magnetic>
  */
 export default function Magnetic({ children, strength = 0.25, className='' }){
   const r = useRef(null)
+  const isTouch = useIsTouchDevice()
+
   useEffect(() => {
+    // Skip magnetic effect on touch devices
+    if (isTouch) return
+
     const el = r.current
     if (!el) return
     let raf = 0
@@ -53,7 +60,7 @@ export default function Magnetic({ children, strength = 0.25, className='' }){
       if (raf) cancelAnimationFrame(raf)
       el.style.transform = ''
     }
-  }, [strength])
+  }, [strength, isTouch])
 
-  return <div ref={r} className={className} style={{willChange:'transform', display:'inline-block'}}>{children}</div>
+  return <div ref={r} className={className} style={{willChange: isTouch ? 'auto' : 'transform', display:'inline-block'}}>{children}</div>
 }

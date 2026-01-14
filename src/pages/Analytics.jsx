@@ -10,11 +10,13 @@ import { motion } from 'framer-motion'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
 import { getUserAchievements, getAchievementProgress, ACHIEVEMENTS } from '../lib/achievements'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
+import useIsTouchDevice from '../hooks/useIsTouchDevice'
 import { getDateKey, calculateStreaks, getWeekBoundaries, normalizeDate, calculateAverage } from '../utils/dateUtils'
 
 export default function Analytics() {
   const { currentUser } = useAuth()
   const prefersReducedMotion = usePrefersReducedMotion()
+  const isMobile = useIsTouchDevice()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalProofs: 0,
@@ -433,23 +435,24 @@ export default function Analytics() {
         {/* Pod Activity Pie Chart */}
         {podActivity.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={isMobile ? { opacity: 0 } : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            className="glass p-6 rounded-xl"
+            transition={{ delay: isMobile ? 0 : 0.35 }}
+            className="glass p-4 sm:p-6 rounded-xl"
           >
             <h2 className="text-lg font-semibold text-white mb-4">Activity by Pod</h2>
-            <div className="flex items-center">
-              <ResponsiveContainer width="50%" height={200}>
+            <div className="flex flex-col sm:flex-row items-center">
+              <ResponsiveContainer width={isMobile ? "100%" : "50%"} height={isMobile ? 160 : 200}>
                 <PieChart>
                   <Pie
                     data={podActivity}
                     cx="50%"
                     cy="50%"
-                    innerRadius={40}
-                    outerRadius={80}
+                    innerRadius={isMobile ? 30 : 40}
+                    outerRadius={isMobile ? 60 : 80}
                     paddingAngle={2}
                     dataKey="value"
+                    isAnimationActive={!isMobile && !prefersReducedMotion}
                   >
                     {podActivity.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -465,10 +468,10 @@ export default function Analytics() {
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex-1 space-y-2">
+              <div className="flex-1 space-y-2 mt-4 sm:mt-0 w-full sm:w-auto">
                 {podActivity.map((entry, index) => (
                   <div key={entry.name} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                     <span className="text-sm text-zinc-300 truncate flex-1">{entry.name}</span>
                     <span className="text-sm text-zinc-400">{entry.value}</span>
                   </div>
@@ -541,31 +544,36 @@ export default function Analytics() {
       </div>
 
       {/* Weekly Activity Chart */}
-      <div className="glass-card p-6 rounded-xl">
-        <h2 className="text-xl font-semibold text-white mb-6">Weekly Activity</h2>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={weeklyData}>
-            <XAxis 
-              dataKey="week" 
+      <div className="glass-card p-4 sm:p-6 rounded-xl">
+        <h2 className="text-xl font-semibold text-white mb-4 sm:mb-6">Weekly Activity</h2>
+        <ResponsiveContainer width="100%" height={isMobile ? 200 : 300}>
+          <BarChart data={weeklyData} margin={isMobile ? { left: -20, right: 5 } : undefined}>
+            <XAxis
+              dataKey="week"
               stroke="rgba(255,255,255,0.3)"
-              style={{ fontSize: '12px' }}
+              style={{ fontSize: isMobile ? '10px' : '12px' }}
+              tickLine={false}
             />
-            <YAxis 
+            <YAxis
               stroke="rgba(255,255,255,0.3)"
-              style={{ fontSize: '12px' }}
+              style={{ fontSize: isMobile ? '10px' : '12px' }}
+              tickLine={false}
+              width={isMobile ? 30 : 40}
             />
             <Tooltip
               contentStyle={{
                 backgroundColor: 'rgba(0,0,0,0.9)',
                 border: '1px solid rgba(255,255,255,0.1)',
                 borderRadius: '8px',
-                color: '#fff'
+                color: '#fff',
+                fontSize: isMobile ? '12px' : '14px'
               }}
             />
-            <Bar 
-              dataKey="proofs" 
+            <Bar
+              dataKey="proofs"
               fill="url(#colorGradient)"
-              radius={[8, 8, 0, 0]}
+              radius={[4, 4, 0, 0]}
+              isAnimationActive={!isMobile && !prefersReducedMotion}
             />
             <defs>
               <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">

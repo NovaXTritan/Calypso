@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCelebration } from '../contexts/CelebrationContext'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
+import useIsTouchDevice from '../hooks/useIsTouchDevice'
 
 // Particle component with gravitational pull physics
 function Particle({ index, centerX, centerY, color, delay, prefersReducedMotion }) {
@@ -117,6 +118,7 @@ function RingBurst({ delay, prefersReducedMotion }) {
 export default function CelebrationOverlay() {
   const { celebration, isActive, dismiss, celebrate } = useCelebration()
   const prefersReducedMotion = usePrefersReducedMotion()
+  const isMobile = useIsTouchDevice()
   const [shake, setShake] = useState(false)
   const containerRef = useRef(null)
 
@@ -154,18 +156,20 @@ export default function CelebrationOverlay() {
     }
   }, [isActive, prefersReducedMotion])
 
-  // Generate particles
+  // Generate particles - reduced on mobile for performance
   const particles = useMemo(() => {
     if (!celebration) return []
-    const count = prefersReducedMotion ? 0 : (celebration.particleCount || 50)
+    if (prefersReducedMotion) return []
+    // 50 on desktop, 20 on mobile
+    const count = isMobile ? 20 : (celebration.particleCount || 50)
     return Array.from({ length: count }, (_, i) => i)
-  }, [celebration, prefersReducedMotion])
+  }, [celebration, prefersReducedMotion, isMobile])
 
-  // Generate sparkles
+  // Generate sparkles - fewer on mobile
   const sparkles = useMemo(() => {
     if (!celebration || prefersReducedMotion) return []
-    return Array.from({ length: 15 }, (_, i) => i)
-  }, [celebration, prefersReducedMotion])
+    return Array.from({ length: isMobile ? 6 : 15 }, (_, i) => i)
+  }, [celebration, prefersReducedMotion, isMobile])
 
   if (!celebration) return null
 
@@ -204,10 +208,10 @@ export default function CelebrationOverlay() {
             transition={{ duration: 1.5, ease: 'easeOut' }}
           />
 
-          {/* Ring bursts */}
+          {/* Ring bursts - only 1 on mobile */}
           <RingBurst delay={0} prefersReducedMotion={prefersReducedMotion} />
-          <RingBurst delay={0.2} prefersReducedMotion={prefersReducedMotion} />
-          <RingBurst delay={0.4} prefersReducedMotion={prefersReducedMotion} />
+          {!isMobile && <RingBurst delay={0.2} prefersReducedMotion={prefersReducedMotion} />}
+          {!isMobile && <RingBurst delay={0.4} prefersReducedMotion={prefersReducedMotion} />}
 
           {/* Particles */}
           {particles.map((i) => (

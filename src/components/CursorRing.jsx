@@ -1,9 +1,16 @@
 import React, { useEffect, useRef } from 'react'
+import useIsTouchDevice from '../hooks/useIsTouchDevice'
 
-/** A lightweight cursor ring that follows the mouse for extra delight. */
+/** A lightweight cursor ring that follows the mouse for extra delight.
+ *  Disabled on touch devices to save resources. */
 export default function CursorRing(){
   const dot = useRef(null)
+  const isTouch = useIsTouchDevice()
+
   useEffect(() => {
+    // Skip on touch devices - no mouse cursor to follow
+    if (isTouch) return
+
     const el = dot.current
     if (!el) return
     let raf=0; let x=0, y=0; let tx=0, ty=0
@@ -16,6 +23,10 @@ export default function CursorRing(){
     }
     window.addEventListener('mousemove', move)
     return () => { window.removeEventListener('mousemove', move); if(raf) cancelAnimationFrame(raf) }
-  }, [])
+  }, [isTouch])
+
+  // Don't render on touch devices
+  if (isTouch) return null
+
   return <div ref={dot} className="pointer-events-none fixed left-0 top-0 z-50 w-6 h-6 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/30 mix-blend-screen" />
 }

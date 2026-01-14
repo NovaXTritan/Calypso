@@ -318,7 +318,9 @@ input[type="range"]::-moz-range-thumb:hover {
 @media (max-width: 768px) {
   .floating-orb {
     filter: blur(40px);
-    opacity: 0.35;
+    opacity: 0.25;
+    /* Pause animations on mobile to save battery */
+    animation-play-state: paused !important;
   }
 
   .floating-orb-3,
@@ -327,13 +329,13 @@ input[type="range"]::-moz-range-thumb:hover {
   }
 
   .floating-orb-1 {
-    width: 250px;
-    height: 250px;
+    width: 200px;
+    height: 200px;
   }
 
   .floating-orb-2 {
-    width: 200px;
-    height: 200px;
+    width: 150px;
+    height: 150px;
   }
 
   .glow-card::before {
@@ -342,7 +344,22 @@ input[type="range"]::-moz-range-thumb:hover {
 
   .reveal-up,
   .reveal-scale {
-    transition-duration: 0.4s;
+    transition-duration: 0.3s;
+  }
+
+  /* Disable gradient animation on mobile */
+  .gradient-text-animated {
+    animation: none;
+    background-size: 100% auto;
+  }
+
+  /* Reduce backdrop blur on mobile */
+  .backdrop-blur-md {
+    backdrop-filter: blur(8px);
+  }
+
+  .backdrop-blur-lg {
+    backdrop-filter: blur(12px);
   }
 }
 
