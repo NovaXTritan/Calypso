@@ -218,7 +218,19 @@ service cloud.firestore {
     // POD STATS (DENORMALIZED COUNTERS)
     // ========================================
     match /podStats/{podSlug} {
-      // Anyone can read stats
+      // Anyone authenticated can read stats
+      allow read: if isAuthenticated();
+
+      // Only cloud functions should update stats
+      // Client writes are blocked to prevent manipulation
+      allow write: if false;
+    }
+
+    // ========================================
+    // POD STATS AGGREGATED (CLOUD FUNCTION MANAGED)
+    // ========================================
+    match /podStatsAggregated/{podSlug} {
+      // Anyone authenticated can read aggregated stats
       allow read: if isAuthenticated();
 
       // Only cloud functions should update stats
