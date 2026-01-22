@@ -196,6 +196,105 @@ exports.resetWeeklyStats = functions.pubsub
   })
 
 /**
+ * HTTP endpoint to initialize pod stats (one-time use)
+ * Call via: curl https://us-central1-cosmos-e42b5.cloudfunctions.net/initPodStats
+ */
+exports.initPodStats = functions.https.onRequest(async (req, res) => {
+  // Only allow POST requests
+  if (req.method !== 'POST' && req.method !== 'GET') {
+    res.status(405).send('Method not allowed')
+    return
+  }
+
+  try {
+    console.log('Starting pod stats initialization...')
+
+    // Get all users
+    const usersSnapshot = await db.collection('users').get()
+    const memberCounts = {}
+
+    usersSnapshot.docs.forEach(doc => {
+      const userData = doc.data()
+      const joinedPods = userData.joinedPods || []
+      joinedPods.forEach(podSlug => {
+        memberCounts[podSlug] = (memberCounts[podSlug] || 0) + 1
+      })
+    })
+
+    // Get all proofs
+    const proofsSnapshot = await db.collection('proofs').get()
+    const proofCounts = {}
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const weeklyProofs = {}
+
+    proofsSnapshot.docs.forEach(doc => {
+      const proof = doc.data()
+      const podSlug = proof.podSlug
+      if (podSlug) {
+        proofCounts[podSlug] = (proofCounts[podSlug] || 0) + 1
+
+        // Handle different timestamp formats
+        let createdAt = 0
+        if (proof.createdAt) {
+          if (typeof proof.createdAt.toMillis === 'function') {
+            createdAt = proof.createdAt.toMillis()
+          } else if (typeof proof.createdAt === 'number') {
+            createdAt = proof.createdAt
+          }
+        }
+
+        if (createdAt > weekAgo) {
+          weeklyProofs[podSlug] = (weeklyProofs[podSlug] || 0) + 1
+        }
+      }
+    })
+
+    // Get all unique pod slugs
+    const allPods = new Set([
+      ...Object.keys(memberCounts),
+      ...Object.keys(proofCounts)
+    ])
+
+    // Update stats for each pod
+    const batch = db.batch()
+    const results = []
+
+    for (const podSlug of allPods) {
+      const statsRef = db.collection(PODS_STATS).doc(podSlug)
+      const stats = {
+        podSlug,
+        members: memberCounts[podSlug] || 0,
+        totalProofs: proofCounts[podSlug] || 0,
+        weeklyProofs: weeklyProofs[podSlug] || 0,
+        updatedAt: Date.now(),
+        initializedAt: Date.now()
+      }
+      batch.set(statsRef, stats)
+      results.push(stats)
+    }
+
+    await batch.commit()
+
+    console.log(`Initialized ${allPods.size} pod stats`)
+
+    res.status(200).json({
+      success: true,
+      message: `Initialized ${allPods.size} pod stats`,
+      podsUpdated: allPods.size,
+      totalUsers: usersSnapshot.size,
+      totalProofs: proofsSnapshot.size,
+      stats: results
+    })
+  } catch (error) {
+    console.error('Error initializing pod stats:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
+  }
+})
+
+/**
  * Manually recalculate all pod stats (callable function for admin use)
  * Call via: firebase functions:call recalculatePodStats
  */
