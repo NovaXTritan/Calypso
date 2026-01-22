@@ -50,52 +50,46 @@ export default function Analytics() {
     try {
       setLoading(true)
 
-      // Fetch proofs by current user (proofs collection with authorId field)
-      const postsQuery = query(
-        collection(db, 'proofs'),
-        where('authorId', '==', currentUser.uid)
-      )
-      const postsSnapshot = await getDocs(postsQuery)
-      const posts = postsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
+      // OPTIMIZED: Use pre-computed data from user document (0 extra reads!)
+      const activityMap = currentUser.activityMap || {}
+      const podActivityMap = currentUser.podActivity || {}
+      const totalProofs = currentUser.totalProofs || 0
+      const streak = currentUser.streak || 0
+      const bestStreak = currentUser.longestStreak || streak
+      const podsJoined = currentUser.joinedPods?.length || 0
 
-      // Calculate total proofs
-      const totalProofs = posts.length
-
-      // Calculate activity by date using local timezone (via dateUtils)
-      const activityByDate = {}
-      const activityByDay = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }
-      const activityByPod = {}
-
-      posts.forEach(post => {
-        const date = normalizeDate(post.createdAt)
-        const dateStr = getDateKey(date) // Uses local timezone consistently
-        activityByDate[dateStr] = (activityByDate[dateStr] || 0) + 1
-        activityByDay[date.getDay()] = (activityByDay[date.getDay()] || 0) + 1
-
-        if (post.pod) {
-          activityByPod[post.pod] = (activityByPod[post.pod] || 0) + 1
+      // Convert activityMap to heatmap data format
+      const heatmapData = Object.entries(activityMap).map(([dateStr, count]) => {
+        const [year, month, day] = dateStr.split('-').map(Number)
+        return {
+          date: new Date(year, month - 1, day).getTime(),
+          count: count || 1
         }
       })
 
-      // Calculate streaks using centralized utility (handles all edge cases)
-      const streakData = calculateStreaks(posts.map(p => ({ date: p.createdAt })))
-      const streak = streakData.current
-      const bestStreak = streakData.longest
+      // Calculate activity by day of week from activityMap
+      const activityByDay = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 }
+      Object.entries(activityMap).forEach(([dateStr, count]) => {
+        const [year, month, day] = dateStr.split('-').map(Number)
+        const date = new Date(year, month - 1, day)
+        activityByDay[date.getDay()] = (activityByDay[date.getDay()] || 0) + count
+      })
 
-      // Calculate this week and last week using proper week boundaries
+      // Calculate this week and last week from activityMap
       const thisWeekBounds = getWeekBoundaries(0)
       const lastWeekBounds = getWeekBoundaries(1)
-      const thisWeek = posts.filter(p => {
-        const ts = normalizeDate(p.createdAt).getTime()
-        return ts >= thisWeekBounds.start && ts <= thisWeekBounds.end
-      }).length
-      const lastWeek = posts.filter(p => {
-        const ts = normalizeDate(p.createdAt).getTime()
-        return ts >= lastWeekBounds.start && ts <= lastWeekBounds.end
-      }).length
+      let thisWeek = 0
+      let lastWeek = 0
+
+      Object.entries(activityMap).forEach(([dateStr, count]) => {
+        const [year, month, day] = dateStr.split('-').map(Number)
+        const ts = new Date(year, month - 1, day).getTime()
+        if (ts >= thisWeekBounds.start && ts <= thisWeekBounds.end) {
+          thisWeek += count
+        } else if (ts >= lastWeekBounds.start && ts <= lastWeekBounds.end) {
+          lastWeek += count
+        }
+      })
 
       // Most active day
       const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -104,46 +98,43 @@ export default function Analytics() {
         ? dayNames[parseInt(mostActiveDayNum[0])]
         : 'N/A'
 
-      // Most active pod
-      const podEntries = Object.entries(activityByPod).sort((a, b) => b[1] - a[1])
+      // Most active pod from podActivityMap
+      const podEntries = Object.entries(podActivityMap).sort((a, b) => b[1] - a[1])
       const mostActivePod = podEntries.length > 0 ? podEntries[0][0] : 'None'
 
-      // Average proofs per week using proper calculation
-      const firstPostDate = posts.length > 0
-        ? Math.min(...posts.map(p => normalizeDate(p.createdAt).getTime()))
+      // Average proofs per week
+      const oldestDateStr = Object.keys(activityMap).sort()[0]
+      const firstPostDate = oldestDateStr
+        ? new Date(oldestDateStr).getTime()
         : Date.now()
       const avgProofsPerWeek = calculateAverage(totalProofs, firstPostDate, 'week')
 
-      // Get pods joined
-      const podsJoined = currentUser.joinedPods?.length || 0
-
-      // Prepare heatmap data from proofs (same format as Profile)
-      const heatmapData = posts.map(post => ({
-        date: post.createdAt,
-        count: 1
-      }))
-
-      // Prepare weekly chart data (last 8 weeks) using proper boundaries
+      // Prepare weekly chart data (last 8 weeks)
       const weeklyActivity = []
       for (let i = 7; i >= 0; i--) {
         const weekBounds = getWeekBoundaries(i)
-        const weekPosts = posts.filter(p => {
-          const ts = normalizeDate(p.createdAt).getTime()
-          return ts >= weekBounds.start && ts <= weekBounds.end
+        let weekProofs = 0
+
+        Object.entries(activityMap).forEach(([dateStr, count]) => {
+          const [year, month, day] = dateStr.split('-').map(Number)
+          const ts = new Date(year, month - 1, day).getTime()
+          if (ts >= weekBounds.start && ts <= weekBounds.end) {
+            weekProofs += count
+          }
         })
 
         weeklyActivity.push({
           week: `W${8 - i}`,
-          proofs: weekPosts.length
+          proofs: weekProofs
         })
       }
 
       // Prepare pod activity data for pie chart
       const podActivityData = podEntries.slice(0, 6).map(([name, value]) => ({ name, value }))
 
-      // Fetch community stats for comparison
+      // Fetch community stats for comparison (small query, still useful)
       try {
-        const allUsersQuery = query(collection(db, 'users'), limit(100))
+        const allUsersQuery = query(collection(db, 'users'), limit(50))
         const usersSnapshot = await getDocs(allUsersQuery)
         const users = usersSnapshot.docs.map(doc => doc.data())
 

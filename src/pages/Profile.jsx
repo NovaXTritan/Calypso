@@ -82,10 +82,10 @@ export default function Profile() {
 
     try {
       // Fetch first page of proofs with pagination
+      // Note: Query requires composite index on authorId + createdAt
       const proofsQuery = query(
         collection(db, 'proofs'),
         where('authorId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc'),
         limit(INITIAL_LOAD)
       )
 
@@ -102,7 +102,7 @@ export default function Profile() {
       const proofs = proofsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }))
+      })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
 
       setRecentProofs(proofs)
 
@@ -140,32 +140,28 @@ export default function Profile() {
     }
   }
 
-  // Fetch heatmap data (past year, optimized query)
+  // Fetch heatmap data from user document (OPTIMIZED: 0 extra reads!)
   async function fetchHeatmapData() {
     if (!currentUser) return
 
     try {
       const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000)
 
-      // Query only timestamps needed for heatmap
-      const heatmapQuery = query(
-        collection(db, 'proofs'),
-        where('authorId', '==', currentUser.uid),
-        where('createdAt', '>=', oneYearAgo),
-        orderBy('createdAt', 'desc')
-      )
+      // Use pre-computed activityMap from user document
+      const activityMap = currentUser.activityMap || {}
 
-      const snapshot = await getDocs(heatmapQuery)
-
-      const activity = snapshot.docs.map(doc => ({
-        date: doc.data().createdAt,
-        count: 1
-      }))
+      // Convert activityMap to heatmap data format
+      const activity = Object.entries(activityMap)
+        .map(([dateStr, count]) => {
+          const [year, month, day] = dateStr.split('-').map(Number)
+          const timestamp = new Date(year, month - 1, day).getTime()
+          return { date: timestamp, count: count || 1 }
+        })
+        .filter(item => item.date >= oneYearAgo)
 
       setHeatmapData(activity)
     } catch (error) {
-      // Fallback: if composite index doesn't exist, use simpler query
-      console.warn('Heatmap query failed, using fallback:', error)
+      console.warn('Heatmap data error:', error)
     }
   }
 
@@ -179,7 +175,6 @@ export default function Profile() {
       const moreProofsQuery = query(
         collection(db, 'proofs'),
         where('authorId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc'),
         startAfter(lastDoc),
         limit(PROOFS_PER_PAGE)
       )
@@ -194,13 +189,13 @@ export default function Profile() {
         setLastDoc(snapshot.docs[snapshot.docs.length - 1])
       }
 
-      // Append new proofs
+      // Append new proofs and sort
       const moreProofs = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }))
 
-      setRecentProofs(prev => [...prev, ...moreProofs])
+      setRecentProofs(prev => [...prev, ...moreProofs].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)))
 
     } catch (error) {
       trackError(error, { action: 'loadMoreProofs', userId: currentUser?.uid }, 'error', ErrorCategory.FIRESTORE)

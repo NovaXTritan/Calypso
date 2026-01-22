@@ -18,14 +18,22 @@ export default defineConfig({
           'vendor-charts': ['recharts'],
           // Utilities
           'vendor-utils': ['zustand', 'zod', 'dompurify', 'lodash.debounce'],
+          // THREE.JS - separate chunk (lazy loaded via BlackHoleCanvas)
+          'vendor-three': ['three'],
         }
       }
     },
     // Increase warning limit since we're code-splitting intentionally
     chunkSizeWarningLimit: 600,
+    // Report compressed sizes
+    reportCompressedSize: true,
+    // Target modern browsers
+    target: 'es2020',
   },
   // Optimize dependency pre-bundling
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom', 'firebase/app', 'firebase/auth', 'firebase/firestore'],
+    // Exclude Three.js from initial optimization (lazy loaded)
+    exclude: ['three']
   }
 })

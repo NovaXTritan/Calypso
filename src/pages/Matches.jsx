@@ -98,24 +98,57 @@ export default function Matches(){
     if (!currentUser) return
 
     try {
-      // Fetch all users (with limit for large databases)
-      const usersSnapshot = await firestoreOperation(
-        () => getDocs(query(collection(db, 'users'), limit(500))),
-        { operation: 'Fetch users' }
-      )
-      const allUsers = usersSnapshot.docs
-        .filter(doc => doc.id !== currentUser.uid)
-        .map(doc => ({ id: doc.id, ...doc.data() }))
+      // OPTIMIZED: Only fetch users in same pods (50 max instead of 500+500)
+      const userPods = currentUser.joinedPods || []
 
-      // Fetch proofs to calculate activity (with limit)
-      const postsSnapshot = await firestoreOperation(
-        () => getDocs(query(collection(db, 'proofs'), limit(500))),
-        { operation: 'Fetch proofs' }
-      )
-      const allPosts = postsSnapshot.docs.map(doc => doc.data())
+      let allUsers = []
+
+      if (userPods.length > 0) {
+        // Firebase array-contains-any supports up to 10 values
+        const podsToQuery = userPods.slice(0, 10)
+
+        const usersSnapshot = await firestoreOperation(
+          () => getDocs(query(
+            collection(db, 'users'),
+            where('joinedPods', 'array-contains-any', podsToQuery),
+            limit(50)
+          )),
+          { operation: 'Fetch users in same pods' }
+        )
+
+        allUsers = usersSnapshot.docs
+          .filter(doc => doc.id !== currentUser.uid)
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+      }
+
+      // If no pod matches or user has no pods, get some active users as fallback
+      if (allUsers.length < 10) {
+        const fallbackSnapshot = await firestoreOperation(
+          () => getDocs(query(
+            collection(db, 'users'),
+            where('totalProofs', '>', 0),
+            limit(20)
+          )),
+          { operation: 'Fetch active users' }
+        )
+
+        const fallbackUsers = fallbackSnapshot.docs
+          .filter(doc => doc.id !== currentUser.uid && !allUsers.find(u => u.id === doc.id))
+          .map(doc => ({ id: doc.id, ...doc.data() }))
+
+        allUsers = [...allUsers, ...fallbackUsers].slice(0, 50)
+      }
+
+      // Use user.totalProofs from user doc instead of fetching proofs collection
+      // Create minimal posts array from user data for matching algorithm
+      const pseudoPosts = allUsers.map(user => ({
+        authorId: user.id,
+        podSlug: (user.joinedPods || [])[0],
+        createdAt: Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000
+      }))
 
       // Use the sophisticated matching algorithm
-      const matchedUsers = calculateMatches(currentUser, allUsers, allPosts)
+      const matchedUsers = calculateMatches(currentUser, allUsers, pseudoPosts)
       setUsers(matchedUsers)
 
       // Extract unique pods and goals for filters

@@ -313,11 +313,21 @@ function ProofComposer({
       // Add to Firestore
       await addDoc(collection(db, 'proofs'), proofData)
 
-      // Update user stats (fire and forget)
+      // Update user stats including activity heatmap (fire and forget)
+      // OPTIMIZED: Store activity in user doc to avoid querying all proofs
+      const today = new Date()
+      const dateKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+      const longestStreak = Math.max(streak, profile?.longestStreak || 0)
+
       updateDoc(doc(db, 'users', user.uid), {
         totalProofs: increment(1),
         streak: streak,
-        lastProofDate: serverTimestamp()
+        longestStreak: longestStreak,
+        lastProofDate: serverTimestamp(),
+        // Store activity count by date for heatmap (last 365 days managed by Cloud Function)
+        [`activityMap.${dateKey}`]: increment(1),
+        // Track per-pod activity
+        [`podActivity.${safeString(podSlug)}`]: increment(1)
       }).catch(err => trackError(err, { action: 'updateStats', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE))
 
       // Check for new achievements and celebrate if any

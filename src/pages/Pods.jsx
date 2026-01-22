@@ -59,62 +59,58 @@ export default function Pods() {
 
   const isModeratorUser = checkIsModerator(currentUser?.email)
 
-  // Fetch pod stats and custom pods
+  // Fetch pod stats from aggregated collection (OPTIMIZED: ~35 reads instead of 2000)
   useEffect(() => {
+    const CACHE_KEY = 'cosmos_pod_stats'
+    const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
     const fetchData = async () => {
       try {
-        // Get member counts by scanning users (reliable method)
-        const usersSnapshot = await firestoreOperation(
-          () => getDocs(query(collection(db, 'users'), limit(1000))),
-          { operation: 'Get users for member counts' }
+        // Try to use cached stats first
+        const cached = localStorage.getItem(CACHE_KEY)
+        if (cached) {
+          const { stats: cachedStats, timestamp } = JSON.parse(cached)
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            setPodStats(cachedStats)
+            // Continue to fetch custom pods and fresh stats in background
+          }
+        }
+
+        // Fetch aggregated stats (one doc per pod = ~35 reads)
+        const statsSnapshot = await firestoreOperation(
+          () => getDocs(collection(db, 'podStatsAggregated')),
+          { operation: 'Get pod stats' }
         )
 
-        const memberCounts = {}
-        usersSnapshot.docs.forEach(doc => {
-          const userData = doc.data()
-          const joinedPods = userData.joinedPods || []
-          joinedPods.forEach(podSlug => {
-            memberCounts[podSlug] = (memberCounts[podSlug] || 0) + 1
-          })
-        })
-
-        // Get proof counts
-        const proofsSnapshot = await firestoreOperation(
-          () => getDocs(query(collection(db, 'proofs'), limit(1000))),
-          { operation: 'Get proofs' }
-        )
-
-        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
-        const proofCounts = {}
-        const weeklyProofs = {}
-
-        proofsSnapshot.docs.forEach(doc => {
-          const proof = doc.data()
-          const podSlug = proof.podSlug
-          if (podSlug) {
-            proofCounts[podSlug] = (proofCounts[podSlug] || 0) + 1
-            if (proof.createdAt >= weekAgo) {
-              weeklyProofs[podSlug] = (weeklyProofs[podSlug] || 0) + 1
-            }
+        const stats = {}
+        statsSnapshot.docs.forEach(doc => {
+          const data = doc.data()
+          stats[data.podSlug || doc.id] = {
+            members: data.members || 0,
+            totalProofs: data.totalProofs || 0,
+            weeklyProofs: data.weeklyProofs || 0
           }
         })
 
-        // Combine stats for all pods
-        const stats = {}
+        // Ensure all default pods have stats (even if 0)
         defaultPods.forEach(name => {
           const slug = slugify(name)
-          stats[slug] = {
-            members: memberCounts[slug] || 0,
-            totalProofs: proofCounts[slug] || 0,
-            weeklyProofs: weeklyProofs[slug] || 0
+          if (!stats[slug]) {
+            stats[slug] = { members: 0, totalProofs: 0, weeklyProofs: 0 }
           }
         })
 
         setPodStats(stats)
 
-        // Fetch custom pods with retry
+        // Cache the stats
+        localStorage.setItem(CACHE_KEY, JSON.stringify({
+          stats,
+          timestamp: Date.now()
+        }))
+
+        // Fetch custom pods (typically small collection)
         const customPodsSnapshot = await firestoreOperation(
-          () => getDocs(collection(db, 'customPods')),
+          () => getDocs(query(collection(db, 'customPods'), limit(100))),
           { operation: 'Get custom pods' }
         )
         const customPodsData = customPodsSnapshot.docs.map(doc => ({
@@ -123,12 +119,10 @@ export default function Pods() {
           isCustom: true
         }))
 
-        // Add stats for custom pods
+        // Add stats for custom pods from aggregated collection
         customPodsData.forEach(pod => {
-          stats[pod.slug] = {
-            members: memberCounts[pod.slug] || 0,
-            totalProofs: proofCounts[pod.slug] || 0,
-            weeklyProofs: weeklyProofs[pod.slug] || 0
+          if (!stats[pod.slug]) {
+            stats[pod.slug] = { members: 0, totalProofs: 0, weeklyProofs: 0 }
           }
         })
 

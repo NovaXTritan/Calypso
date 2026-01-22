@@ -109,12 +109,18 @@ service cloud.firestore {
     // Adapted: uses authorId, podSlug, content fields
     // ========================================
     match /proofs/{proofId} {
-      // Anyone authenticated can read public proofs
-      // Pod members can read all proofs in their pod
+      // Users can always read their own proofs
+      // This rule is query-friendly for: where('authorId', '==', uid)
       allow read: if isAuthenticated() &&
-                    (resource.data.visibility == 'public' ||
-                     isAuthor() ||
-                     isPodMember(resource.data.podSlug));
+                    request.auth.uid == resource.data.authorId;
+
+      // Authenticated users can read public proofs
+      allow read: if isAuthenticated() &&
+                    resource.data.visibility == 'public';
+
+      // Pod members can read proofs in their pod
+      allow read: if isAuthenticated() &&
+                    isPodMember(resource.data.podSlug);
 
       // Users can create proofs for themselves
       allow create: if isAuthenticated() &&

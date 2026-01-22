@@ -134,8 +134,13 @@ export async function findAccountabilityPartner(userId, podSlug) {
       return existingPartner
     }
 
-    // Get all users in this pod
-    const usersSnapshot = await getDocs(collection(db, 'users'))
+    // Get users in this pod only (OPTIMIZED: uses array-contains + limit)
+    const usersQuery = query(
+      collection(db, 'users'),
+      where('joinedPods', 'array-contains', podSlug),
+      limit(50)
+    )
+    const usersSnapshot = await getDocs(usersQuery)
     const potentialPartners = []
 
     usersSnapshot.docs.forEach(doc => {
@@ -146,9 +151,6 @@ export async function findAccountabilityPartner(userId, podSlug) {
 
       // Skip users who opted out
       if (userData.privacySettings?.hideFromMatching) return
-
-      // Must be in the same pod
-      if (!(userData.joinedPods || []).includes(podSlug)) return
 
       // Skip users who already have a partner in this pod
       const existingPartnership = (userData.accountabilityPartners || [])
