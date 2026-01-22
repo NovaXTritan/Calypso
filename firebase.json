@@ -1,6 +1,11 @@
 {
   "firestore": {
-    "indexes": "firestore.indexes.json"
+    "indexes": "firestore.indexes.json",
+    "rules": "firestore.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
   },
   "hosting": {
     "public": "dist",
