@@ -79,11 +79,11 @@ service cloud.firestore {
 
       // Only owner can create their profile
       allow create: if isOwner(userId) &&
-                       validUserData(request.resource.data);
+                       validUserCreateData(request.resource.data);
 
       // Only owner can update their profile
       allow update: if isOwner(userId) &&
-                       validUserData(request.resource.data) &&
+                       validUserUpdateData(request.resource.data) &&
                        // Prevent changing immutable fields
                        (!('createdAt' in request.resource.data.diff(resource.data).affectedKeys()) &&
                         !('uid' in request.resource.data.diff(resource.data).affectedKeys()));
@@ -91,11 +91,24 @@ service cloud.firestore {
       // Users can only delete their own profile
       allow delete: if isOwner(userId);
 
-      function validUserData(data) {
+      // Validation for creating a new user profile
+      function validUserCreateData(data) {
+        return data.uid == request.auth.uid &&
+               validString(data.displayName, 1, 100) &&
+               data.email is string &&
+               (data.bio == null || data.bio is string) &&
+               (data.photoURL == null || data.photoURL is string) &&
+               (data.joinedPods == null || data.joinedPods is list) &&
+               (data.goals == null || data.goals is list);
+      }
+
+      // Validation for updating user profile (more permissive)
+      function validUserUpdateData(data) {
         return validString(data.displayName, 1, 100) &&
-               (data.bio == null || validString(data.bio, 0, 500)) &&
-               (data.photoURL == null || data.photoURL.matches('^https://.*')) &&
-               (data.joinedPods == null || data.joinedPods is list);
+               (data.bio == null || data.bio is string) &&
+               (data.photoURL == null || data.photoURL is string) &&
+               (data.joinedPods == null || data.joinedPods is list) &&
+               (data.goals == null || data.goals is list);
       }
 
       // User's private settings
@@ -402,6 +415,38 @@ service cloud.firestore {
       function challengeIsActive(challengeId) {
         let challenge = get(/databases/$(database)/documents/challenges/$(challengeId));
         return challenge.data.endDate > request.time;
+      }
+    }
+
+    // ========================================
+    // EVENTS (COMMUNITY EVENTS)
+    // ========================================
+    match /events/{eventId} {
+      // Anyone authenticated can read events
+      allow read: if isAuthenticated();
+
+      // Authenticated users can create events
+      allow create: if isAuthenticated() &&
+                       request.resource.data.createdBy == request.auth.uid &&
+                       validEventData(request.resource.data);
+
+      // Creator can update, or any authenticated user can update attendees (RSVP)
+      allow update: if isAuthenticated() &&
+                       (isOwner(resource.data.createdBy) ||
+                        // Allow RSVP: only attendees array can be modified by others
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees']));
+
+      // Only creator or moderator can delete
+      allow delete: if isOwner(resource.data.createdBy) || isModerator();
+
+      function validEventData(data) {
+        return validString(data.title, 3, 200) &&
+               validString(data.description, 1, 2000) &&
+               data.category in ['workshop', 'livestream', 'discussion', 'coworking', 'challenge', 'other'] &&
+               data.date is number &&
+               data.duration is number && data.duration >= 15 && data.duration <= 480 &&
+               data.maxAttendees is number && data.maxAttendees >= 2 && data.maxAttendees <= 100 &&
+               data.createdBy == request.auth.uid;
       }
     }
 
