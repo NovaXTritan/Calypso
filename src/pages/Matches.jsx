@@ -137,22 +137,22 @@ export default function Matches(){
         }
       }
 
-      // If no pod matches or user has no pods, get some active users as fallback
-      if (allUsers.length < 10) {
-        const fallbackSnapshot = await firestoreOperation(
-          () => getDocs(query(
-            collection(db, 'users'),
-            where('totalProofs', '>', 0),
-            limit(50)
-          )),
-          { operation: 'Fetch active users' }
-        )
+      // Always fetch all users to ensure we don't miss anyone
+      // This catches users who aren't in any shared pods
+      const allUsersSnapshot = await firestoreOperation(
+        () => getDocs(query(
+          collection(db, 'users'),
+          limit(200) // Get all users (reasonable limit for the platform)
+        )),
+        { operation: 'Fetch all users' }
+      )
 
-        const fallbackUsers = fallbackSnapshot.docs
-          .filter(doc => doc.id !== currentUser.uid && !seenUserIds.has(doc.id))
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-
-        allUsers = [...allUsers, ...fallbackUsers]
+      // Add any users we haven't seen yet
+      for (const doc of allUsersSnapshot.docs) {
+        if (doc.id !== currentUser.uid && !seenUserIds.has(doc.id)) {
+          seenUserIds.add(doc.id)
+          allUsers.push({ id: doc.id, ...doc.data() })
+        }
       }
 
       // Use user.totalProofs from user doc instead of fetching proofs collection
