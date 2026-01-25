@@ -31,6 +31,8 @@ import { safeToast, safeString, safeNumber } from '../utils/safe'
 import { sanitizeText } from '../utils/security'
 import { checkAchievements } from '../lib/achievements'
 import { useCelebration } from '../contexts/CelebrationContext'
+import { onProofSubmit } from '../lib/challenges'
+import { incrementProofCount } from '../lib/podStats'
 
 // Use sanitizeText from security.js, fallback to basic escaping
 const sanitize = (str) => {
@@ -86,16 +88,8 @@ function ProofComposer({
   threadTitle = null,
   onSuccess
 }) {
-  // Safe auth hook
-  let user = null
-  try {
-    const auth = useAuth()
-    user = auth?.currentUser
-  } catch {
-    trackError('Auth context not available', { component: 'Composer' }, 'warn', ErrorCategory.AUTH)
-  }
-
-  // Celebration hook for streak milestones
+  // Hooks must be called unconditionally (React Rules of Hooks)
+  const { currentUser: user } = useAuth()
   const { checkStreakMilestone, celebrate } = useCelebration()
 
   const fileInputRef = useRef(null)
@@ -358,6 +352,14 @@ function ProofComposer({
         .catch(err =>
           trackError(err, { action: 'checkAchievements', userId: user.uid }, 'warn', ErrorCategory.FIRESTORE)
         )
+
+      // Update pod statistics (fire and forget)
+      incrementProofCount(safeString(podSlug))
+        .catch(err => trackError(err, { action: 'incrementProofCount', podSlug }, 'warn', ErrorCategory.FIRESTORE))
+
+      // Update weekly challenge progress (fire and forget)
+      onProofSubmit(user.uid, safeString(podSlug))
+        .catch(err => trackError(err, { action: 'onProofSubmit', podSlug }, 'warn', ErrorCategory.FIRESTORE))
 
       // Reset form
       setContent('')

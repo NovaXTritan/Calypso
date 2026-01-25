@@ -155,16 +155,12 @@ export default function Login() {
                 <label htmlFor="password" className="block text-sm font-medium text-zinc-300">
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForgotPassword(true)
-                    setResetEmail(email)
-                  }}
+                <Link
+                  to="/forgot-password"
                   className="text-sm text-brand-400 hover:text-brand-300 transition-colors"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <input
                 id="password"

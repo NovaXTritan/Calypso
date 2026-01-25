@@ -120,9 +120,25 @@ export default function Events(){
     if (!currentUser) return
 
     try {
+      // Validate required fields
+      if (!newEvent.title.trim()) {
+        toast.error('Please enter an event title')
+        return
+      }
+      if (!newEvent.description.trim()) {
+        toast.error('Please enter an event description')
+        return
+      }
+
       const dateTime = new Date(`${newEvent.date}T${newEvent.time}`)
       if (isNaN(dateTime.getTime())) {
         toast.error('Please enter a valid date and time')
+        return
+      }
+
+      // Validate that event is in the future
+      if (dateTime.getTime() <= Date.now()) {
+        toast.error('Event date must be in the future')
         return
       }
 

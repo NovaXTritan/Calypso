@@ -533,7 +533,7 @@ export default function Journal(){
                         className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:ring-2 focus:ring-brand-400 focus:outline-none text-sm"
                       >
                         {MOODS.map(m => (
-                          <option key={m} value={m}>{m}</option>
+                          <option key={m.name} value={m.name}>{m.emoji} {m.name}</option>
                         ))}
                       </select>
                       <textarea

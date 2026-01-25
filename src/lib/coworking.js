@@ -172,17 +172,33 @@ export async function leaveRoom(roomId, userId) {
 
     if (sessionDoc.exists()) {
       const session = sessionDoc.data()
-      const focusTime = Math.floor((Date.now() - session.joinedAt?.toDate?.()?.getTime() || 0) / 60000)
+
+      // Safely calculate focus time with proper null handling
+      let focusTime = 0
+      try {
+        const joinedAtTimestamp = session.joinedAt?.toDate?.()?.getTime()
+        if (joinedAtTimestamp && !isNaN(joinedAtTimestamp)) {
+          focusTime = Math.floor((Date.now() - joinedAtTimestamp) / 60000)
+          // Sanity check - focus time should be positive and reasonable (max 24 hours)
+          if (focusTime < 0 || focusTime > 1440) {
+            focusTime = 0
+          }
+        }
+      } catch (e) {
+        focusTime = 0
+      }
 
       await updateDoc(sessionRef, {
         leftAt: serverTimestamp(),
         focusTime
       })
 
-      // Update user's total focus time
-      await updateDoc(doc(db, 'users', userId), {
-        totalFocusTime: increment(focusTime)
-      })
+      // Update user's total focus time (only if valid)
+      if (focusTime > 0) {
+        await updateDoc(doc(db, 'users', userId), {
+          totalFocusTime: increment(focusTime)
+        })
+      }
     }
 
     // If host leaves and room is empty, close the room

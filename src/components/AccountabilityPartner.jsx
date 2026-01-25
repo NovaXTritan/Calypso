@@ -1,5 +1,5 @@
 // AccountabilityPartner.jsx - Accountability Partner widget for pods
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   findAccountabilityPartner,
@@ -22,6 +22,16 @@ export default function AccountabilityPartner({ userId, userEmail, podSlug }) {
   const [actionLoading, setActionLoading] = useState(false)
   const [showFindPartner, setShowFindPartner] = useState(false)
   const [nudgeSent, setNudgeSent] = useState(false)
+  const nudgeTimeoutRef = useRef(null)
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (nudgeTimeoutRef.current) {
+        clearTimeout(nudgeTimeoutRef.current)
+      }
+    }
+  }, [])
 
   // Load existing partner or find suggestions
   useEffect(() => {
@@ -137,7 +147,11 @@ export default function AccountabilityPartner({ userId, userEmail, podSlug }) {
     try {
       await sendNudge(userId, partner.id, podSlug)
       setNudgeSent(true)
-      setTimeout(() => setNudgeSent(false), 60000) // Reset after 1 minute
+      // Clear any existing timeout before setting a new one
+      if (nudgeTimeoutRef.current) {
+        clearTimeout(nudgeTimeoutRef.current)
+      }
+      nudgeTimeoutRef.current = setTimeout(() => setNudgeSent(false), 60000) // Reset after 1 minute
     } catch (error) {
       console.error('Error sending nudge:', error)
     }

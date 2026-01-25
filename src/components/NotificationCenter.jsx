@@ -11,7 +11,8 @@ import {
   updateDoc,
   doc,
   writeBatch,
-  getDocs
+  getDocs,
+  deleteDoc
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from '../contexts/AuthContext'
@@ -171,6 +172,19 @@ export default function NotificationCenter() {
     }
   }, [currentUser?.uid, notifications])
 
+  // Delete a notification
+  const deleteNotification = useCallback(async (e, notificationId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!currentUser?.uid) return
+
+    try {
+      await deleteDoc(doc(db, 'notifications', notificationId))
+    } catch (err) {
+      trackError(err, { action: 'deleteNotification', notificationId }, 'warn', ErrorCategory.FIRESTORE)
+    }
+  }, [currentUser?.uid])
+
   // Get notification link based on type
   const getNotificationLink = (notification) => {
     switch (notification.type) {
@@ -292,7 +306,7 @@ export default function NotificationCenter() {
 
                       const content = (
                         <div
-                          className={`flex items-start gap-3 p-4 transition-colors ${
+                          className={`group flex items-start gap-3 p-4 transition-colors ${
                             !notification.read ? 'bg-brand-500/5' : 'hover:bg-white/5'
                           }`}
                           onClick={() => handleNotificationClick(notification)}
@@ -316,6 +330,15 @@ export default function NotificationCenter() {
                           {!notification.read && (
                             <div className="w-2 h-2 rounded-full bg-brand-500 flex-shrink-0 mt-2" />
                           )}
+
+                          {/* Delete button */}
+                          <button
+                            onClick={(e) => deleteNotification(e, notification.id)}
+                            className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 rounded transition-all"
+                            title="Delete notification"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-zinc-400 hover:text-red-400" />
+                          </button>
                         </div>
                       )
 

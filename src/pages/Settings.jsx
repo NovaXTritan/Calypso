@@ -14,7 +14,7 @@ import {
 import { trackError, ErrorCategory } from '../utils/errorTracking'
 
 export default function Settings(){
-  const { currentUser, changeEmail, changePassword, updateUserProfile, logout } = useAuth()
+  const { currentUser, changeEmail, changePassword, resetPassword, updateUserProfile, logout } = useAuth()
   const navigate = useNavigate()
 
   // Account Settings
@@ -23,6 +23,7 @@ export default function Settings(){
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [passwordUpdating, setPasswordUpdating] = useState(false)
+  const [resetLinkSending, setResetLinkSending] = useState(false)
 
   // Preferences
   const [emailNotifications, setEmailNotifications] = useState(currentUser?.preferences?.emailNotifications ?? true)
@@ -85,6 +86,28 @@ export default function Settings(){
     }
   }
 
+  async function handleSendResetLink() {
+    if (!currentUser?.email) {
+      toast.error('No email address found')
+      return
+    }
+
+    setResetLinkSending(true)
+    try {
+      await resetPassword(currentUser.email)
+      toast.success('Password reset link sent to your email!')
+    } catch (error) {
+      trackError(error, { action: 'sendResetLink', userId: currentUser?.uid }, 'error', ErrorCategory.AUTH)
+      if (error.code === 'auth/too-many-requests') {
+        toast.error('Too many requests. Please try again later.')
+      } else {
+        toast.error('Failed to send reset link')
+      }
+    } finally {
+      setResetLinkSending(false)
+    }
+  }
+
   async function handlePasswordChange(e) {
     e.preventDefault()
     
@@ -93,8 +116,25 @@ export default function Settings(){
       return
     }
 
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters')
+    // Validate password strength (same as signup requirements)
+    if (newPassword.length < 8) {
+      toast.error('Password must be at least 8 characters')
+      return
+    }
+    if (!/[A-Z]/.test(newPassword)) {
+      toast.error('Password must contain at least one uppercase letter')
+      return
+    }
+    if (!/[a-z]/.test(newPassword)) {
+      toast.error('Password must contain at least one lowercase letter')
+      return
+    }
+    if (!/[0-9]/.test(newPassword)) {
+      toast.error('Password must contain at least one number')
+      return
+    }
+    if (!/[^A-Za-z0-9]/.test(newPassword)) {
+      toast.error('Password must contain at least one special character')
       return
     }
 
@@ -250,13 +290,27 @@ export default function Settings(){
                 placeholder="Confirm new password"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400"
               />
-              <button
-                type="submit"
-                disabled={passwordUpdating || !newPassword || !confirmPassword}
-                className="px-4 py-2 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {passwordUpdating ? 'Updating...' : 'Change Password'}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={passwordUpdating || !newPassword || !confirmPassword}
+                  className="px-4 py-2 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {passwordUpdating ? 'Updating...' : 'Change Password'}
+                </button>
+                <span className="text-zinc-500 text-sm">or</span>
+                <button
+                  type="button"
+                  onClick={handleSendResetLink}
+                  disabled={resetLinkSending}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-sm transition-colors disabled:opacity-50"
+                >
+                  {resetLinkSending ? 'Sending...' : 'Send Reset Link'}
+                </button>
+              </div>
+              <p className="text-xs text-zinc-500 mt-2">
+                Forgot your current password? Send a reset link to {currentUser?.email}
+              </p>
             </div>
           </form>
         </div>

@@ -15,6 +15,7 @@ import {
   arrayRemove
 } from 'firebase/firestore'
 import { db } from './firebase'
+import { checkAchievements } from './achievements'
 
 // Calculate compatibility score between two users
 function calculateCompatibility(user1, user2) {
@@ -283,6 +284,10 @@ export async function acceptPartnership(userId, fromUserId, podSlug) {
       read: false,
       createdAt: serverTimestamp()
     })
+
+    // Check for partner achievement for both users (fire and forget)
+    checkAchievements(userId, { partnersCount: 1 }).catch(() => {})
+    checkAchievements(fromUserId, { partnersCount: 1 }).catch(() => {})
 
     return { success: true }
   } catch (error) {

@@ -35,6 +35,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Constitution = lazy(() => import('./pages/Constitution'))
 const Chat = lazy(() => import('./pages/Chat'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
 
 // Page transition variants - desktop
 const pageVariants = {
@@ -106,6 +107,7 @@ function AppContent() {
               {/* Public routes */}
               <Route path="/login" element={<AnimatedPage><Login /></AnimatedPage>} />
               <Route path="/signup" element={<AnimatedPage><Signup /></AnimatedPage>} />
+              <Route path="/forgot-password" element={<AnimatedPage><ForgotPassword /></AnimatedPage>} />
               <Route path="/constitution" element={<AnimatedPage><Constitution /></AnimatedPage>} />
 
               {/* Home route - public (handles auth check internally) */}

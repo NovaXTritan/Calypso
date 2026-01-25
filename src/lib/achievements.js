@@ -172,6 +172,13 @@ export async function checkAchievements(userId, stats, context = {}) {
       }
     }
 
+    // Check partner achievements
+    if (stats.partnersCount !== undefined && stats.partnersCount >= 1) {
+      if (!existingAchievements.includes(ACHIEVEMENTS.FIRST_PARTNER.id)) {
+        newAchievements.push(ACHIEVEMENTS.FIRST_PARTNER)
+      }
+    }
+
     // Check time-based achievements when posting a proof
     if (context.justPostedProof) {
       const now = new Date()

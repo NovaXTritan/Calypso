@@ -342,6 +342,7 @@ export default function Profile() {
   }
 
   function handleCancel() {
+    if (!currentUser) return
     setDisplayName(currentUser.displayName || '')
     setBio(currentUser.bio || '')
     setGoals((currentUser.goals || []).join(', '))

@@ -98,27 +98,43 @@ export default function Matches(){
     if (!currentUser) return
 
     try {
-      // OPTIMIZED: Only fetch users in same pods (50 max instead of 500+500)
+      // Fetch users in same pods - query in batches due to Firebase array-contains-any limit of 10
       const userPods = currentUser.joinedPods || []
 
       let allUsers = []
+      const seenUserIds = new Set()
 
       if (userPods.length > 0) {
-        // Firebase array-contains-any supports up to 10 values
-        const podsToQuery = userPods.slice(0, 10)
+        // Firebase array-contains-any supports up to 10 values, so batch the queries
+        const batchSize = 10
+        const podBatches = []
+        for (let i = 0; i < userPods.length; i += batchSize) {
+          podBatches.push(userPods.slice(i, i + batchSize))
+        }
 
-        const usersSnapshot = await firestoreOperation(
-          () => getDocs(query(
-            collection(db, 'users'),
-            where('joinedPods', 'array-contains-any', podsToQuery),
-            limit(50)
-          )),
-          { operation: 'Fetch users in same pods' }
+        // Query all batches in parallel
+        const batchPromises = podBatches.map(podBatch =>
+          firestoreOperation(
+            () => getDocs(query(
+              collection(db, 'users'),
+              where('joinedPods', 'array-contains-any', podBatch),
+              limit(100) // Get more users per batch
+            )),
+            { operation: 'Fetch users in same pods' }
+          )
         )
 
-        allUsers = usersSnapshot.docs
-          .filter(doc => doc.id !== currentUser.uid)
-          .map(doc => ({ id: doc.id, ...doc.data() }))
+        const batchResults = await Promise.all(batchPromises)
+
+        // Combine results and deduplicate
+        for (const snapshot of batchResults) {
+          for (const doc of snapshot.docs) {
+            if (doc.id !== currentUser.uid && !seenUserIds.has(doc.id)) {
+              seenUserIds.add(doc.id)
+              allUsers.push({ id: doc.id, ...doc.data() })
+            }
+          }
+        }
       }
 
       // If no pod matches or user has no pods, get some active users as fallback
@@ -127,16 +143,16 @@ export default function Matches(){
           () => getDocs(query(
             collection(db, 'users'),
             where('totalProofs', '>', 0),
-            limit(20)
+            limit(50)
           )),
           { operation: 'Fetch active users' }
         )
 
         const fallbackUsers = fallbackSnapshot.docs
-          .filter(doc => doc.id !== currentUser.uid && !allUsers.find(u => u.id === doc.id))
+          .filter(doc => doc.id !== currentUser.uid && !seenUserIds.has(doc.id))
           .map(doc => ({ id: doc.id, ...doc.data() }))
 
-        allUsers = [...allUsers, ...fallbackUsers].slice(0, 50)
+        allUsers = [...allUsers, ...fallbackUsers]
       }
 
       // Use user.totalProofs from user doc instead of fetching proofs collection

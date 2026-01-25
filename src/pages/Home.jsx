@@ -82,22 +82,26 @@ export default function Home(){
       try {
         const [eventSnapshot, leaderboardSnapshot, activitySnapshot] = await Promise.all([
           getDocs(eventQuery).catch(() => null),
-          getDocs(leaderboardQuery).catch(() => ({ docs: [] })),
-          getDocs(activityQuery).catch(() => ({ docs: [] }))
+          getDocs(leaderboardQuery).catch(() => null),
+          getDocs(activityQuery).catch(() => null)
         ])
 
-        // Process results
+        // Process results with null checks
         if (eventSnapshot && !eventSnapshot.empty) {
           setNextEvent({ id: eventSnapshot.docs[0].id, ...eventSnapshot.docs[0].data() })
         }
 
-        setLeaderboard(leaderboardSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+        if (leaderboardSnapshot?.docs) {
+          setLeaderboard(leaderboardSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+        }
 
-        setActivityFeed(activitySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          type: 'proof'
-        })))
+        if (activitySnapshot?.docs) {
+          setActivityFeed(activitySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            type: 'proof'
+          })))
+        }
       } catch (error) {
         console.error('Error fetching home data:', error)
       } finally {

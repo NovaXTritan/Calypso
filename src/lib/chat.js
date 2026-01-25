@@ -151,15 +151,20 @@ export async function sendMessage(conversationId, senderId, text) {
 // Mark messages as read
 export async function markMessagesAsRead(conversationId, userId) {
   const messagesRef = collection(db, 'conversations', conversationId, 'messages')
+
+  // Note: Firestore doesn't support != in compound queries
+  // So we query for unread messages and filter client-side
   const q = query(
     messagesRef,
-    where('read', '==', false),
-    where('senderId', '!=', userId)
+    where('read', '==', false)
   )
 
   try {
     const snapshot = await getDocs(q)
-    const updates = snapshot.docs.map(docSnap =>
+    // Filter out messages sent by the current user (we only want to mark others' messages as read)
+    const messagesToUpdate = snapshot.docs.filter(docSnap => docSnap.data().senderId !== userId)
+
+    const updates = messagesToUpdate.map(docSnap =>
       updateDoc(doc(messagesRef, docSnap.id), { read: true })
     )
     await Promise.all(updates)

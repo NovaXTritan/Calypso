@@ -109,11 +109,23 @@ const formatTime = (timestamp) => {
   }
 }
 
-// Safe URL validation
+// Safe URL validation - only allows http/https protocols
 const isValidUrl = (string) => {
   try {
-    new URL(string)
-    return true
+    const url = new URL(string)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+// Safe image URL validation - prevents javascript: and data: URIs
+const isValidImageUrl = (string) => {
+  if (!string || typeof string !== 'string') return false
+  try {
+    const url = new URL(string)
+    // Only allow http/https protocols for images
+    return url.protocol === 'http:' || url.protocol === 'https:'
   } catch {
     return false
   }
@@ -143,6 +155,7 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isVerifying, setIsVerifying] = useState(false)
+  const [isReporting, setIsReporting] = useState(false)
 
   // Safe data extraction with fallbacks
   const proofId = safeString(proof.id)
@@ -464,6 +477,31 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
     }
   }, [isVerifying, currentUserId, userHasVerified, proofId, currentUserName])
 
+  const handleReport = useCallback(async () => {
+    if (isReporting || !currentUserId) return
+
+    setIsReporting(true)
+    setShowMenu(false)
+
+    try {
+      // Add report to Firestore
+      await addDoc(collection(db, 'reports'), {
+        proofId: proofId,
+        reportedBy: currentUserId,
+        authorId: authorId,
+        reason: 'User reported content',
+        status: 'pending',
+        createdAt: Date.now()
+      })
+      safeToast.success('Report submitted. Our team will review it.')
+    } catch (error) {
+      trackError(error, { action: 'reportProof', proofId }, 'error', ErrorCategory.FIRESTORE)
+      safeToast.error('Failed to submit report. Please try again.')
+    } finally {
+      setIsReporting(false)
+    }
+  }, [isReporting, currentUserId, proofId, authorId])
+
   const isAuthor = currentUserId && authorId && currentUserId === authorId
   const isModeratorUser = checkIsModerator(currentUserEmail)
   const canModify = isAuthor || isModeratorUser
@@ -494,7 +532,7 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
           )
           
         case 'image':
-          if (!content) {
+          if (!content || !isValidImageUrl(content)) {
             return <p className="text-zinc-400 italic">Image not available</p>
           }
           if (imageError) {
@@ -507,7 +545,7 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
           }
           return (
             <div className="relative group">
-              <img 
+              <img
                 src={content} 
                 alt="Proof" 
                 className="rounded-lg max-h-96 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
@@ -722,11 +760,12 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
                   {isBookmarked ? 'Bookmarked' : 'Bookmark'}
                 </button>
                 <button
-                  onClick={() => setShowMenu(false)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors"
+                  onClick={handleReport}
+                  disabled={isReporting || isAuthor}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300 hover:bg-white/5 transition-colors disabled:opacity-50"
                 >
                   <Flag className="w-4 h-4" />
-                  Report
+                  {isReporting ? 'Reporting...' : 'Report'}
                 </button>
               </div>
             </>
@@ -976,7 +1015,7 @@ function ProofCard({ proof, currentUserId, currentUserEmail, currentUserName, sh
 
           {/* Comments List */}
           {commentCount > 0 ? (
-            <div className="space-y-3 max-h-80 overflow-y-auto">
+            <div className="space-y-3">
               {renderComments()}
             </div>
           ) : (

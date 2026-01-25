@@ -64,6 +64,9 @@ export default function Leaderboard() {
           ...doc.data()
         }))
 
+        // Filter out users who have opted out of leaderboards
+        users = users.filter(u => !u.privacySettings?.hideFromLeaderboards)
+
         // Sort by pods count if that's the category
         if (activeCategory === 'pods') {
           users = users

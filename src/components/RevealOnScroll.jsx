@@ -22,12 +22,14 @@ export default function RevealOnScroll({
       return
     }
 
+    let timeoutId = null
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           // Add delay if specified
           if (delay > 0) {
-            setTimeout(() => setIsRevealed(true), delay)
+            timeoutId = setTimeout(() => setIsRevealed(true), delay)
           } else {
             setIsRevealed(true)
           }
@@ -39,7 +41,10 @@ export default function RevealOnScroll({
 
     observer.observe(element)
 
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (timeoutId) clearTimeout(timeoutId)
+    }
   }, [delay, threshold])
 
   const revealClass = type === 'scale' ? 'reveal-scale' : 'reveal-up'

@@ -25,16 +25,18 @@ export function AuthProvider({ children }) {
 
   // Signup function
   async function signup(email, password, displayName) {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-    
+    // Normalize email to lowercase for consistency
+    const normalizedEmail = email.trim().toLowerCase()
+    const userCredential = await createUserWithEmailAndPassword(auth, normalizedEmail, password)
+
     // Update display name in Firebase Auth
-    await updateProfile(userCredential.user, { displayName })
-    
+    await updateProfile(userCredential.user, { displayName: displayName.trim() })
+
     // Create user document in Firestore
     await setDoc(doc(db, 'users', userCredential.user.uid), {
       uid: userCredential.user.uid,
-      email: email,
-      displayName: displayName,
+      email: normalizedEmail,
+      displayName: displayName.trim(),
       photoURL: null,
       bio: '',
       goals: [],
@@ -63,7 +65,14 @@ export function AuthProvider({ children }) {
     const { setUserId, initializeMembership } = useForum.getState()
     setUserId(null)
     initializeMembership([])
-    
+
+    // Clear localStorage to prevent data leakage on shared devices
+    try {
+      localStorage.removeItem('cosmos_forum_v1')
+    } catch (e) {
+      // Ignore localStorage errors
+    }
+
     return signOut(auth)
   }
 
