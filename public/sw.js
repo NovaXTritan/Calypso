@@ -1,7 +1,7 @@
-const CACHE_VERSION = 'cosmos-v2'
+const CACHE_VERSION = 'cosmos-v3'
 const STATIC_CACHE = `${CACHE_VERSION}-static`
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`
-const BASE = '/cosmos/'
+const BASE = '/Calypso/'
 
 // Core assets to cache immediately
 const CORE_ASSETS = [
@@ -84,8 +84,14 @@ self.addEventListener('fetch', e => {
     return
   }
 
-  // Cache-first for static assets
-  if (CACHE_FIRST_PATTERNS.some(p => p.test(url.pathname))) {
+  // Network-first for JS/CSS bundles (ensures fresh code on deploy)
+  if (/\.(?:js|css)$/.test(url.pathname)) {
+    e.respondWith(networkFirst(request))
+    return
+  }
+
+  // Cache-first for static assets (images, fonts only)
+  if (/\.(?:png|jpg|jpeg|svg|gif|webp|ico|woff2?|ttf|otf)$/.test(url.pathname)) {
     e.respondWith(cacheFirst(request))
     return
   }
@@ -172,8 +178,8 @@ self.addEventListener('push', e => {
 
   const options = {
     body: body || 'You have a new notification',
-    icon: icon || '/cosmos/icon-192.png',
-    badge: badge || '/cosmos/icon-96.png',
+    icon: icon || '/Calypso/icon-192.png',
+    badge: badge || '/Calypso/icon-96.png',
     vibrate: [100, 50, 100],
     data: notifData || data.data || {},
     actions: getNotificationActions(notifData?.type),
@@ -220,19 +226,19 @@ self.addEventListener('notificationclick', e => {
 
   switch (type) {
     case 'new_message':
-      url = chatId ? `/cosmos/#/chat/${chatId}` : '/cosmos/#/matches'
+      url = chatId ? `/Calypso/#/chat/${chatId}` : '/Calypso/#/matches'
       break
     case 'new_match':
-      url = matchId ? `/cosmos/#/matches` : '/cosmos/#/matches'
+      url = matchId ? `/Calypso/#/matches` : '/Calypso/#/matches'
       break
     case 'pod_activity':
-      url = podSlug ? `/cosmos/#/pods/${podSlug}` : '/cosmos/#/pods'
+      url = podSlug ? `/Calypso/#/pods/${podSlug}` : '/Calypso/#/pods'
       break
     case 'event_reminder':
-      url = '/cosmos/#/events'
+      url = '/Calypso/#/events'
       break
     default:
-      url = '/cosmos/'
+      url = '/Calypso/'
   }
 
   e.waitUntil(
@@ -240,7 +246,7 @@ self.addEventListener('notificationclick', e => {
       .then(clientList => {
         // If there's already a window open, focus it and navigate
         for (const client of clientList) {
-          if (client.url.includes('/cosmos') && 'focus' in client) {
+          if (client.url.includes('/Calypso') && 'focus' in client) {
             client.focus()
             client.navigate(url)
             return

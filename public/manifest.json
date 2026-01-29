@@ -2,8 +2,8 @@
   "name": "PeerLearn — Cosmos",
   "short_name": "Cosmos",
   "description": "Turn intent into progress — join pods, ship tiny proofs, grow together.",
-  "start_url": "/cosmos/",
-  "scope": "/cosmos/",
+  "start_url": "/Calypso/",
+  "scope": "/Calypso/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0b0e16",
@@ -11,31 +11,31 @@
   "categories": ["education", "productivity", "social"],
   "icons": [
     {
-      "src": "/cosmos/favicon.svg",
+      "src": "/Calypso/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/cosmos/icon-192.png",
+      "src": "/Calypso/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/cosmos/icon-512.png",
+      "src": "/Calypso/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/cosmos/icon-maskable-192.png",
+      "src": "/Calypso/icon-maskable-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/cosmos/icon-maskable-512.png",
+      "src": "/Calypso/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -46,34 +46,34 @@
       "name": "My Pods",
       "short_name": "Pods",
       "description": "View your learning pods",
-      "url": "/cosmos/#/pods",
-      "icons": [{ "src": "/cosmos/icon-pods.png", "sizes": "96x96" }]
+      "url": "/Calypso/#/pods",
+      "icons": [{ "src": "/Calypso/icon-pods.png", "sizes": "96x96" }]
     },
     {
       "name": "Journal",
       "short_name": "Journal",
       "description": "Write in your journal",
-      "url": "/cosmos/#/journal",
-      "icons": [{ "src": "/cosmos/icon-journal.png", "sizes": "96x96" }]
+      "url": "/Calypso/#/journal",
+      "icons": [{ "src": "/Calypso/icon-journal.png", "sizes": "96x96" }]
     },
     {
       "name": "Analytics",
       "short_name": "Stats",
       "description": "View your progress",
-      "url": "/cosmos/#/analytics",
-      "icons": [{ "src": "/cosmos/icon-analytics.png", "sizes": "96x96" }]
+      "url": "/Calypso/#/analytics",
+      "icons": [{ "src": "/Calypso/icon-analytics.png", "sizes": "96x96" }]
     }
   ],
   "screenshots": [
     {
-      "src": "/cosmos/screenshot-wide.png",
+      "src": "/Calypso/screenshot-wide.png",
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Cosmos Dashboard"
     },
     {
-      "src": "/cosmos/screenshot-mobile.png",
+      "src": "/Calypso/screenshot-mobile.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",

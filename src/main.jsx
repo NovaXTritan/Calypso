@@ -36,6 +36,7 @@ const Constitution = lazy(() => import('./pages/Constitution'))
 const Chat = lazy(() => import('./pages/Chat'))
 const Leaderboard = lazy(() => import('./pages/Leaderboard'))
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const FannedCardStackDemo = lazy(() => import('./components/ui/FannedCardStack/FannedCardStackDemo'))
 
 // Page transition variants - desktop
 const pageVariants = {
@@ -109,6 +110,7 @@ function AppContent() {
               <Route path="/signup" element={<AnimatedPage><Signup /></AnimatedPage>} />
               <Route path="/forgot-password" element={<AnimatedPage><ForgotPassword /></AnimatedPage>} />
               <Route path="/constitution" element={<AnimatedPage><Constitution /></AnimatedPage>} />
+              <Route path="/demo" element={<AnimatedPage><FannedCardStackDemo /></AnimatedPage>} />
 
               {/* Home route - public (handles auth check internally) */}
               <Route path="/" element={<AnimatedPage><Home /></AnimatedPage>} />
@@ -186,9 +188,26 @@ createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 )
 
-// Keep service worker if you have one (optional)
+// Register service worker with update detection
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/cosmos/sw.js').catch(() => {})
+    const swPath = import.meta.env.BASE_URL + 'sw.js'
+    navigator.serviceWorker.register(swPath).then(registration => {
+      // Check for updates every 30 minutes
+      setInterval(() => registration.update(), 30 * 60 * 1000)
+
+      // Listen for new service worker
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing
+        newWorker?.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available, skip waiting to activate immediately
+            newWorker.postMessage('skipWaiting')
+            // Reload to get new version
+            window.location.reload()
+          }
+        })
+      })
+    }).catch(() => {})
   })
 }
