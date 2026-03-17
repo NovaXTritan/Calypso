@@ -57,6 +57,7 @@ exports.journalChat = (0, https_1.onCall)({
     memory: "512MiB",
     timeoutSeconds: 60,
     secrets: [...config_1.JOURNAL_AI_SECRETS],
+    invoker: "public",
 }, async (request) => {
     // 1. Authenticate
     if (!request.auth) {

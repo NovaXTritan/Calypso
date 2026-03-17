@@ -114,6 +114,7 @@ export const analyzeJournalOnDemand = onCall(
     memory: "512MiB",
     timeoutSeconds: 120,
     secrets: [...JOURNAL_AI_SECRETS],
+    invoker: "public",
   },
   async (request) => {
     if (!request.auth) {

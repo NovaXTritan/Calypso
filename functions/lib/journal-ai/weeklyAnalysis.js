@@ -117,6 +117,7 @@ exports.analyzeJournalOnDemand = (0, https_1.onCall)({
     memory: "512MiB",
     timeoutSeconds: 120,
     secrets: [...config_1.JOURNAL_AI_SECRETS],
+    invoker: "public",
 }, async (request) => {
     if (!request.auth) {
         throw new https_1.HttpsError("unauthenticated", "You must be logged in.");

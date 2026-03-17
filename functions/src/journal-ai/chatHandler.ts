@@ -34,6 +34,7 @@ export const journalChat = onCall(
     memory: "512MiB",
     timeoutSeconds: 60,
     secrets: [...JOURNAL_AI_SECRETS],
+    invoker: "public",
   },
   async (request): Promise<ChatResponse> => {
     // 1. Authenticate
