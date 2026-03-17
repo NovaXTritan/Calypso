@@ -155,6 +155,7 @@ async function generateInsightForUser(userId) {
             generationConfig: {
                 maxOutputTokens: config_1.GEMINI_CONFIG.maxAnalysisTokens,
                 temperature: config_1.GEMINI_CONFIG.analysisTemperature,
+                responseMimeType: "application/json",
             },
         });
         const prompt = `${prompts_1.SYSTEM_PROMPT_ANALYSIS}\n\n---\n\nStudent Data:\n\n${contextMessage}`;
@@ -199,6 +200,7 @@ async function generateInsightForUser(userId) {
                     generationConfig: {
                         maxOutputTokens: config_1.GEMINI_CONFIG.maxAnalysisTokens,
                         temperature: config_1.GEMINI_CONFIG.analysisTemperature,
+                        responseMimeType: "application/json",
                     },
                 });
                 const prompt = `${prompts_1.SYSTEM_PROMPT_ANALYSIS}\n\n---\n\nStudent Data:\n\n${contextMessage}`;

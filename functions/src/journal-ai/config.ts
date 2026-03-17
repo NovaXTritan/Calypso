@@ -11,7 +11,7 @@ export const GEMINI_CONFIG = {
   chatModel: "gemini-2.5-flash" as const,
   analysisModel: "gemini-2.5-flash" as const,
   maxChatTokens: 2048,
-  maxAnalysisTokens: 4096,
+  maxAnalysisTokens: 8192,
   chatTemperature: 0.7,
   analysisTemperature: 0.6,
 };

@@ -180,6 +180,7 @@ async function generateInsightForUser(
       generationConfig: {
         maxOutputTokens: GEMINI_CONFIG.maxAnalysisTokens,
         temperature: GEMINI_CONFIG.analysisTemperature,
+        responseMimeType: "application/json",
       },
     });
 
@@ -241,6 +242,7 @@ async function generateInsightForUser(
           generationConfig: {
             maxOutputTokens: GEMINI_CONFIG.maxAnalysisTokens,
             temperature: GEMINI_CONFIG.analysisTemperature,
+            responseMimeType: "application/json",
           },
         });
 
