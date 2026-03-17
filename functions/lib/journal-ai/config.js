@@ -10,8 +10,8 @@ exports.GEMINI_CONFIG = {
     get apiKey() {
         return process.env.GEMINI_API_KEY || "";
     },
-    chatModel: "gemini-2.0-flash",
-    analysisModel: "gemini-2.0-flash",
+    chatModel: "gemini-2.5-flash",
+    analysisModel: "gemini-2.5-flash",
     maxChatTokens: 1024,
     maxAnalysisTokens: 2048,
     chatTemperature: 0.7,

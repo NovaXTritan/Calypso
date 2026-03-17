@@ -207,9 +207,9 @@ exports.journalChat = (0, https_1.onCall)({
     catch (error) {
         const err = error;
         console.error("Gemini API error:", err.message);
-        // Retry on rate limit
-        if (err.status === 429) {
-            await sleep(2000);
+        // Retry on rate limit with proper backoff
+        if (err.status === 429 || (err.message && err.message.includes("429"))) {
+            await sleep(5000);
             try {
                 const genAI = new generative_ai_1.GoogleGenerativeAI(config_1.GEMINI_CONFIG.apiKey);
                 const model = genAI.getGenerativeModel({

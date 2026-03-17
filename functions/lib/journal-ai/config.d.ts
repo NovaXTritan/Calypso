@@ -5,8 +5,8 @@
  */
 export declare const GEMINI_CONFIG: {
     readonly apiKey: string;
-    chatModel: "gemini-2.0-flash";
-    analysisModel: "gemini-2.0-flash";
+    chatModel: "gemini-2.5-flash";
+    analysisModel: "gemini-2.5-flash";
     maxChatTokens: number;
     maxAnalysisTokens: number;
     chatTemperature: number;
