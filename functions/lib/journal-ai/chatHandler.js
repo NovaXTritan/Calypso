@@ -116,8 +116,8 @@ exports.journalChat = (0, https_1.onCall)({
     }
     // 5. Build context from Firestore
     const context = await (0, contextBuilder_1.buildAnalysisContext)(userId, config_1.RATE_LIMITS.maxJournalEntriesForChat, sessionId);
-    // Handle insufficient data
-    if (context.insufficientData && !context.goalsConfigured) {
+    // Handle insufficient data (regardless of goals status)
+    if (context.insufficientData) {
         const fallbackResponse = context.insufficientDataMessage ||
             "I need more journal entries to start analyzing patterns. Keep writing and I'll be ready soon!";
         // Still save the messages for continuity

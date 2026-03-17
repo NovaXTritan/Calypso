@@ -7,15 +7,11 @@
 import { AnalysisContext } from "./types";
 /**
  * Build the full analysis context for a user by querying Firestore in parallel.
- *
- * @param userId - The authenticated user's ID
- * @param maxJournalEntries - Max journal entries to include (14 for chat, 30 for analysis)
- * @param sessionId - Optional chat session ID to load message history
  */
 export declare function buildAnalysisContext(userId: string, maxJournalEntries?: number, sessionId?: string): Promise<AnalysisContext>;
 /**
  * Check how many chat messages the user has sent today.
- * Used for rate limiting.
+ * Simplified to avoid composite index on messages subcollection.
  */
 export declare function getChatMessageCountToday(userId: string): Promise<number>;
 /**

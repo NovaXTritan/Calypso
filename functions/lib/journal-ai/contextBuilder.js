@@ -47,13 +47,9 @@ const config_1 = require("./config");
 const db = admin.firestore();
 /**
  * Build the full analysis context for a user by querying Firestore in parallel.
- *
- * @param userId - The authenticated user's ID
- * @param maxJournalEntries - Max journal entries to include (14 for chat, 30 for analysis)
- * @param sessionId - Optional chat session ID to load message history
  */
 async function buildAnalysisContext(userId, maxJournalEntries = config_1.RATE_LIMITS.maxJournalEntriesForChat, sessionId) {
-    // Run all queries in parallel
+    // Run all queries in parallel — each wrapped in try-catch
     const [journals, goals, previousInsight, podActivity, chatHistory] = await Promise.all([
         fetchJournalEntries(userId, maxJournalEntries),
         fetchGoals(userId),
@@ -87,145 +83,223 @@ async function buildAnalysisContext(userId, maxJournalEntries = config_1.RATE_LI
     };
 }
 // ========================================
-// Individual Query Functions
+// Individual Query Functions (all safe)
 // ========================================
-async function fetchJournalEntries(userId, limit) {
-    const snapshot = await db
-        .collection("journal_entries")
-        .where("userId", "==", userId)
-        .orderBy("createdAt", "desc")
-        .limit(limit)
-        .get();
-    return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-    }));
-}
-async function fetchGoals(userId) {
-    const snapshot = await db
-        .collection("users")
-        .doc(userId)
-        .collection("goals")
-        .orderBy("createdAt", "desc")
-        .limit(1)
-        .get();
-    if (snapshot.empty)
-        return null;
-    return snapshot.docs[0].data();
-}
-async function fetchPreviousInsight(userId) {
-    const snapshot = await db
-        .collection("users")
-        .doc(userId)
-        .collection("insights")
-        .orderBy("generatedAt", "desc")
-        .limit(1)
-        .get();
-    if (snapshot.empty)
-        return null;
-    const data = snapshot.docs[0].data();
-    return data.analysis;
-}
-async function fetchPodActivity(userId) {
-    // Get user's joined pods
-    const userDoc = await db.collection("users").doc(userId).get();
-    if (!userDoc.exists)
-        return [];
-    const userData = userDoc.data();
-    const joinedPods = userData?.joinedPods || [];
-    if (joinedPods.length === 0)
-        return [];
-    // Get pod members (limit to first pod for context size)
-    const podSlug = joinedPods[0];
-    const membersSnapshot = await db
-        .collection("users")
-        .where("joinedPods", "array-contains", podSlug)
-        .limit(8)
-        .get();
-    const activities = [];
-    for (const memberDoc of membersSnapshot.docs) {
-        if (memberDoc.id === userId)
-            continue; // Skip self
-        const memberData = memberDoc.data();
-        const memberName = memberData.displayName || "Anonymous";
-        // Get their last 3 proofs
-        const proofsSnapshot = await db
-            .collection("proofs")
-            .where("authorId", "==", memberDoc.id)
+async function fetchJournalEntries(userId, entryLimit) {
+    try {
+        // Simple query: filter by userId, then sort in memory to avoid
+        // composite index requirement if index isn't built yet
+        const snapshot = await db
+            .collection("journal_entries")
+            .where("userId", "==", userId)
             .orderBy("createdAt", "desc")
-            .limit(3)
+            .limit(entryLimit)
             .get();
-        if (proofsSnapshot.empty) {
-            activities.push({
-                memberName,
-                recentProofSummary: "No recent activity",
-            });
+        return snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+        }));
+    }
+    catch (error) {
+        // Fallback: query without orderBy (no composite index needed)
+        console.warn("journal_entries composite index not ready, using fallback query");
+        try {
+            const snapshot = await db
+                .collection("journal_entries")
+                .where("userId", "==", userId)
+                .get();
+            const entries = snapshot.docs.map((doc) => ({
+                id: doc.id,
+                ...doc.data(),
+            }));
+            // Sort in memory and limit
+            entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            return entries.slice(0, entryLimit);
         }
-        else {
-            const summaries = proofsSnapshot.docs.map((p) => {
-                const data = p.data();
-                const content = data.content?.substring(0, 60) || "Submitted proof";
-                return content;
-            });
-            activities.push({
-                memberName,
-                recentProofSummary: summaries.join("; "),
-            });
+        catch (fallbackError) {
+            console.error("Failed to fetch journal entries:", fallbackError);
+            return [];
         }
     }
-    return activities;
+}
+async function fetchGoals(userId) {
+    try {
+        const snapshot = await db
+            .collection("users")
+            .doc(userId)
+            .collection("goals")
+            .orderBy("createdAt", "desc")
+            .limit(1)
+            .get();
+        if (snapshot.empty)
+            return null;
+        return snapshot.docs[0].data();
+    }
+    catch (error) {
+        // Fallback without orderBy
+        try {
+            const snapshot = await db
+                .collection("users")
+                .doc(userId)
+                .collection("goals")
+                .limit(1)
+                .get();
+            if (snapshot.empty)
+                return null;
+            return snapshot.docs[0].data();
+        }
+        catch {
+            console.error("Failed to fetch goals:", error);
+            return null;
+        }
+    }
+}
+async function fetchPreviousInsight(userId) {
+    try {
+        const snapshot = await db
+            .collection("users")
+            .doc(userId)
+            .collection("insights")
+            .orderBy("generatedAt", "desc")
+            .limit(1)
+            .get();
+        if (snapshot.empty)
+            return null;
+        const data = snapshot.docs[0].data();
+        return data.analysis;
+    }
+    catch (error) {
+        console.error("Failed to fetch previous insight:", error);
+        return null;
+    }
+}
+async function fetchPodActivity(userId) {
+    try {
+        const userDoc = await db.collection("users").doc(userId).get();
+        if (!userDoc.exists)
+            return [];
+        const userData = userDoc.data();
+        const joinedPods = userData?.joinedPods || [];
+        if (joinedPods.length === 0)
+            return [];
+        const podSlug = joinedPods[0];
+        const membersSnapshot = await db
+            .collection("users")
+            .where("joinedPods", "array-contains", podSlug)
+            .limit(8)
+            .get();
+        const activities = [];
+        for (const memberDoc of membersSnapshot.docs) {
+            if (memberDoc.id === userId)
+                continue;
+            const memberData = memberDoc.data();
+            const memberName = memberData.displayName || "Anonymous";
+            try {
+                const proofsSnapshot = await db
+                    .collection("proofs")
+                    .where("authorId", "==", memberDoc.id)
+                    .orderBy("createdAt", "desc")
+                    .limit(3)
+                    .get();
+                if (proofsSnapshot.empty) {
+                    activities.push({ memberName, recentProofSummary: "No recent activity" });
+                }
+                else {
+                    const summaries = proofsSnapshot.docs.map((p) => {
+                        const data = p.data();
+                        return data.content?.substring(0, 60) || "Submitted proof";
+                    });
+                    activities.push({ memberName, recentProofSummary: summaries.join("; ") });
+                }
+            }
+            catch {
+                activities.push({ memberName, recentProofSummary: "Activity unavailable" });
+            }
+        }
+        return activities;
+    }
+    catch (error) {
+        console.error("Failed to fetch pod activity:", error);
+        return [];
+    }
 }
 async function fetchChatHistory(userId, sessionId) {
-    const snapshot = await db
-        .collection("users")
-        .doc(userId)
-        .collection("chatSessions")
-        .doc(sessionId)
-        .collection("messages")
-        .orderBy("createdAt", "asc")
-        .limitToLast(config_1.RATE_LIMITS.maxChatHistoryMessages)
-        .get();
-    return snapshot.docs.map((doc) => doc.data());
+    try {
+        const snapshot = await db
+            .collection("users")
+            .doc(userId)
+            .collection("chatSessions")
+            .doc(sessionId)
+            .collection("messages")
+            .orderBy("createdAt", "asc")
+            .get();
+        const docs = snapshot.docs;
+        // Take last N messages
+        const sliced = docs.slice(Math.max(0, docs.length - config_1.RATE_LIMITS.maxChatHistoryMessages));
+        return sliced.map((doc) => doc.data());
+    }
+    catch (error) {
+        console.error("Failed to fetch chat history:", error);
+        return [];
+    }
 }
 /**
  * Check how many chat messages the user has sent today.
- * Used for rate limiting.
+ * Simplified to avoid composite index on messages subcollection.
  */
 async function getChatMessageCountToday(userId) {
-    const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istNow = new Date(now.getTime() + istOffset);
-    const istMidnight = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
-    const todayStart = admin.firestore.Timestamp.fromMillis(istMidnight.getTime() - istOffset);
-    // Count messages across all sessions today
-    const sessionsSnapshot = await db
-        .collection("users")
-        .doc(userId)
-        .collection("chatSessions")
-        .where("updatedAt", ">=", todayStart)
-        .get();
-    let count = 0;
-    for (const sessionDoc of sessionsSnapshot.docs) {
-        const messagesSnapshot = await sessionDoc.ref
-            .collection("messages")
-            .where("role", "==", "user")
-            .where("createdAt", ">=", todayStart)
+    try {
+        const now = new Date();
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const istNow = new Date(now.getTime() + istOffset);
+        const istMidnight = new Date(istNow.getFullYear(), istNow.getMonth(), istNow.getDate());
+        const todayStart = admin.firestore.Timestamp.fromMillis(istMidnight.getTime() - istOffset);
+        // Get sessions updated today
+        const sessionsSnapshot = await db
+            .collection("users")
+            .doc(userId)
+            .collection("chatSessions")
+            .where("updatedAt", ">=", todayStart)
             .get();
-        count += messagesSnapshot.size;
+        let count = 0;
+        for (const sessionDoc of sessionsSnapshot.docs) {
+            // Get ALL messages today (no role filter = no composite index needed)
+            const messagesSnapshot = await sessionDoc.ref
+                .collection("messages")
+                .where("createdAt", ">=", todayStart)
+                .get();
+            // Count only user messages in memory
+            for (const msgDoc of messagesSnapshot.docs) {
+                if (msgDoc.data().role === "user") {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
-    return count;
+    catch (error) {
+        console.error("Failed to get chat message count:", error);
+        // On error, don't block the user — return 0
+        return 0;
+    }
 }
 /**
  * Count weekly analyses for rate limiting on-demand analysis.
  */
 async function getWeeklyAnalysisCount(userId) {
-    const weekAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const snapshot = await db
-        .collection("users")
-        .doc(userId)
-        .collection("insights")
-        .where("generatedAt", ">=", weekAgo)
-        .get();
-    return snapshot.size;
+    try {
+        const weekAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const snapshot = await db
+            .collection("users")
+            .doc(userId)
+            .collection("insights")
+            .where("generatedAt", ">=", weekAgo)
+            .get();
+        return snapshot.size;
+    }
+    catch (error) {
+        console.error("Failed to get weekly analysis count:", error);
+        return 0;
+    }
 }
 //# sourceMappingURL=contextBuilder.js.map

@@ -116,8 +116,8 @@ export const journalChat = onCall(
       sessionId
     );
 
-    // Handle insufficient data
-    if (context.insufficientData && !context.goalsConfigured) {
+    // Handle insufficient data (regardless of goals status)
+    if (context.insufficientData) {
       const fallbackResponse =
         context.insufficientDataMessage ||
         "I need more journal entries to start analyzing patterns. Keep writing and I'll be ready soon!";
