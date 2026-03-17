@@ -1,5 +1,7 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { db } from '../../lib/firebase'
+import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore'
 import useInsights from '../../hooks/useInsights'
 import JournalInsightCard from './JournalInsightCard'
 import { motion } from 'framer-motion'
@@ -127,6 +129,25 @@ export default function InsightsDashboard() {
   const { latestInsight, loading, analyzing, error, analyzeNow } = useInsights(
     currentUser?.uid
   )
+  const [userGoals, setUserGoals] = useState(null)
+
+  // Fetch user goals for target comparison in chart
+  useEffect(() => {
+    if (!currentUser) return
+    async function fetchGoals() {
+      try {
+        const goalsRef = collection(db, 'users', currentUser.uid, 'goals')
+        const q = query(goalsRef, orderBy('createdAt', 'desc'), limit(1))
+        const snapshot = await getDocs(q)
+        if (!snapshot.empty) {
+          setUserGoals(snapshot.docs[0].data())
+        }
+      } catch (err) {
+        console.error('Error fetching goals for insights:', err)
+      }
+    }
+    fetchGoals()
+  }, [currentUser])
 
   async function handleAnalyze() {
     try {
@@ -227,7 +248,7 @@ export default function InsightsDashboard() {
           <h4 className="text-sm font-medium text-zinc-400 mb-4 flex items-center gap-2">
             <BarChart3 className="w-4 h-4" /> Actual vs Target
           </h4>
-          <AllocationChart actual={analysis.actualAllocation} />
+          <AllocationChart actual={analysis.actualAllocation} focusAreas={userGoals?.focusAreas} />
         </div>
       </div>
 

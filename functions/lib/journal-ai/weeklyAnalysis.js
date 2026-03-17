@@ -161,8 +161,11 @@ async function generateInsightForUser(userId) {
         const result = await model.generateContent(prompt);
         const responseText = result.response.text();
         const tokensUsed = result.response.usageMetadata?.totalTokenCount || 0;
+        console.log(`ANALYSIS_DEBUG: Response length=${responseText.length}, tokens=${tokensUsed}`);
+        console.log(`ANALYSIS_DEBUG: First 500 chars: ${responseText.substring(0, 500)}`);
         // Parse JSON — handle potential markdown wrapping
         analysisResponse = parseAnalysisJSON(responseText);
+        console.log(`ANALYSIS_DEBUG: Parsed alignmentScore=${analysisResponse.alignmentScore}, insightsCount=${analysisResponse.keyInsights?.length}, allocKeys=${Object.keys(analysisResponse.actualAllocation || {}).join(",")}`);
         // Store insight in Firestore
         const now = admin.firestore.Timestamp.now();
         const weekAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -233,53 +236,49 @@ async function generateInsightForUser(userId) {
 // JSON Parsing
 // ========================================
 function parseAnalysisJSON(text) {
-    // Strip markdown code blocks if present
     let cleaned = text.trim();
-    if (cleaned.startsWith("```json")) {
-        cleaned = cleaned.slice(7);
+    // Strategy 1: Strip markdown code blocks
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    // Strategy 2: Extract JSON object from surrounding text
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        cleaned = jsonMatch[0];
     }
-    else if (cleaned.startsWith("```")) {
-        cleaned = cleaned.slice(3);
-    }
-    if (cleaned.endsWith("```")) {
-        cleaned = cleaned.slice(0, -3);
-    }
-    cleaned = cleaned.trim();
     try {
         const parsed = JSON.parse(cleaned);
-        // Validate required fields
-        if (typeof parsed.alignmentScore !== "number") {
-            parsed.alignmentScore = 50;
-        }
-        if (!Array.isArray(parsed.keyInsights)) {
-            parsed.keyInsights = [];
-        }
-        if (!parsed.balanceCheck) {
-            parsed.balanceCheck = {
-                status: "warning",
-                message: "Unable to fully assess balance.",
-                neglectedAreas: [],
-            };
-        }
-        if (!parsed.weeklyExperiment) {
-            parsed.weeklyExperiment = {
-                title: "Reflect on your week",
-                description: "Take 15 minutes to review what worked and what didn't.",
-                measurable: "Write a brief summary by Sunday evening.",
-            };
-        }
-        if (!parsed.compassionateNote) {
-            parsed.compassionateNote =
-                "Keep showing up — the consistency itself is a signal of commitment.";
-        }
-        if (!parsed.actualAllocation) {
-            parsed.actualAllocation = {};
-        }
-        return parsed;
+        return validateAnalysis(parsed);
     }
-    catch (parseError) {
-        console.error("Failed to parse Gemini JSON response:", parseError);
-        // Return a safe fallback
+    catch (firstError) {
+        console.error("ANALYSIS_DEBUG: First parse attempt failed:", firstError.message);
+        console.error("ANALYSIS_DEBUG: Cleaned text (first 300):", cleaned.substring(0, 300));
+        // Strategy 3: Try to fix common JSON issues (trailing commas, incomplete)
+        try {
+            // Remove trailing commas before } or ]
+            let fixed = cleaned.replace(/,\s*([}\]])/g, "$1");
+            // Try to close unclosed structures
+            const opens = (fixed.match(/\{/g) || []).length;
+            const closes = (fixed.match(/\}/g) || []).length;
+            for (let i = 0; i < opens - closes; i++) {
+                fixed += "}";
+            }
+            const bracketOpens = (fixed.match(/\[/g) || []).length;
+            const bracketCloses = (fixed.match(/\]/g) || []).length;
+            for (let i = 0; i < bracketOpens - bracketCloses; i++) {
+                fixed += "]";
+            }
+            // Re-extract JSON
+            const reMatch = fixed.match(/\{[\s\S]*\}/);
+            if (reMatch) {
+                const parsed = JSON.parse(reMatch[0]);
+                console.log("ANALYSIS_DEBUG: Fixed JSON parse succeeded");
+                return validateAnalysis(parsed);
+            }
+        }
+        catch (secondError) {
+            console.error("ANALYSIS_DEBUG: Second parse attempt failed:", secondError.message);
+        }
+        // Final fallback
+        console.error("ANALYSIS_DEBUG: All parse attempts failed, using fallback");
         return {
             alignmentScore: 50,
             actualAllocation: {},
@@ -288,23 +287,33 @@ function parseAnalysisJSON(text) {
                     type: "pattern",
                     severity: "low",
                     title: "Analysis incomplete this week",
-                    insight: "The AI was unable to fully parse this week's analysis. This is a temporary issue.",
-                    suggestion: "Try the on-demand analysis again, or wait for next week's automated analysis.",
+                    insight: "The AI response could not be parsed. This is a temporary issue.",
+                    suggestion: "Try the on-demand analysis again.",
                 },
             ],
-            balanceCheck: {
-                status: "warning",
-                message: "Unable to assess life balance this week due to a processing issue.",
-                neglectedAreas: [],
-            },
-            weeklyExperiment: {
-                title: "Detailed journaling",
-                description: "This week, try including specific time estimates in your journal entries (e.g., 'Spent 2 hours on DSA').",
-                measurable: "At least 3 entries this week mention specific time spent on activities.",
-            },
-            compassionateNote: "Your consistency in journaling is building a foundation for better insights next week.",
+            balanceCheck: { status: "warning", message: "Unable to assess balance this week.", neglectedAreas: [] },
+            weeklyExperiment: { title: "Detailed journaling", description: "Include time estimates in entries.", measurable: "3 entries with specific hours." },
+            compassionateNote: "Your consistency in journaling matters — better insights are coming.",
         };
     }
+}
+function validateAnalysis(parsed) {
+    if (typeof parsed.alignmentScore !== "number")
+        parsed.alignmentScore = 50;
+    if (!Array.isArray(parsed.keyInsights))
+        parsed.keyInsights = [];
+    if (!parsed.balanceCheck) {
+        parsed.balanceCheck = { status: "warning", message: "Unable to fully assess balance.", neglectedAreas: [] };
+    }
+    if (!parsed.weeklyExperiment) {
+        parsed.weeklyExperiment = { title: "Reflect on your week", description: "Review what worked.", measurable: "Write a brief summary." };
+    }
+    if (!parsed.compassionateNote) {
+        parsed.compassionateNote = "Keep showing up — consistency is a signal of commitment.";
+    }
+    if (!parsed.actualAllocation)
+        parsed.actualAllocation = {};
+    return parsed;
 }
 // ========================================
 // WhatsApp Integration

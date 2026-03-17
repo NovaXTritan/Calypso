@@ -44,7 +44,7 @@ TONE: Think of a senior researcher who genuinely cares about their junior collea
 FORMAT:
 - Use short paragraphs (2-3 sentences max)
 - Use *bold* for key observations
-- Limit responses to 150-200 words unless the student asks for more detail
+- Limit responses to 200-300 words unless the student asks for more detail
 - End with a question OR a single micro-experiment to try`;
 
 // ========================================
