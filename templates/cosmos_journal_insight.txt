@@ -1,0 +1,19 @@
+Template Name: cosmos_journal_insight
+Category: UTILITY
+Language: en
+
+Header: None
+
+Body:
+{{1}}
+
+Footer: Cosmos AI Journal Analysis
+
+Buttons: None
+
+---
+Notes:
+- Weekly journal insight sent on Sundays at 10 AM IST
+- AI-analyzed patterns from the user's last 7 journal entries
+- Cost in India: Rs 0.13 per message (utility rate)
+- Submit via Meta Business Manager > WhatsApp > Message Templates

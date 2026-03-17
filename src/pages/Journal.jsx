@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
 import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore'
-import { Calendar, Trash2, Search, AlertCircle, Pencil, X, Check, Sparkles, TrendingUp, BarChart3, Lightbulb, RefreshCw, BookOpen, Flame, Clock } from 'lucide-react'
+import { Calendar, Trash2, Search, AlertCircle, Pencil, X, Check, Sparkles, TrendingUp, BarChart3, Lightbulb, RefreshCw, BookOpen, Flame, Clock, MessageSquare, Brain } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
 import usePrefersReducedMotion from '../hooks/usePrefersReducedMotion'
 import { getDateKey, calculateStreaks, getWeekBoundaries, normalizeDate, daysAgo } from '../utils/dateUtils'
+
+const JournalChat = lazy(() => import('../components/Journal/JournalChat'))
+const InsightsDashboard = lazy(() => import('../components/Journal/InsightsDashboard'))
 
 const MOODS = [
   { name: 'Calm', emoji: '😌', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
@@ -35,9 +38,16 @@ const WRITING_PROMPTS = [
   "What obstacle did you overcome recently?"
 ]
 
+const TAB_CONFIG = [
+  { id: 'write', label: 'Write', icon: BookOpen },
+  { id: 'chat', label: 'AI Chat', icon: MessageSquare },
+  { id: 'insights', label: 'Insights', icon: Brain },
+]
+
 export default function Journal(){
   const { currentUser } = useAuth()
   const prefersReducedMotion = usePrefersReducedMotion()
+  const [activeTab, setActiveTab] = useState('write')
   const [content, setContent] = useState('')
   const [mood, setMood] = useState('Calm')
   const [tags, setTags] = useState('')
@@ -281,6 +291,49 @@ export default function Journal(){
           </div>
         )}
       </div>
+
+      {/* Tab Bar */}
+      <div className="flex items-center gap-1 p-1 bg-white/5 rounded-xl mb-6 w-fit">
+        {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === id
+                ? 'bg-brand-500/20 text-brand-400 shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-300 hover:bg-white/5'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* AI Chat Tab */}
+      {activeTab === 'chat' && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          <JournalChat />
+        </Suspense>
+      )}
+
+      {/* Insights Tab */}
+      {activeTab === 'insights' && (
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          <InsightsDashboard />
+        </Suspense>
+      )}
+
+      {/* Write Tab — existing journal content */}
+      {activeTab !== 'write' ? null : (<>
 
       {fetchError && (
         <div className="glass p-4 rounded-xl mb-6 border border-red-500/30 bg-red-500/5">
@@ -601,6 +654,18 @@ export default function Journal(){
           </div>
         </div>
       </div>
+
+      {/* Floating AI Chat Button */}
+      {activeTab === 'write' && (
+        <button
+          onClick={() => setActiveTab('chat')}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-brand-500 hover:bg-brand-600 rounded-full shadow-lg shadow-brand-500/25 flex items-center justify-center transition-all hover:scale-105 z-30"
+          title="Ask AI"
+        >
+          <Sparkles className="w-6 h-6 text-white" />
+        </button>
+      )}
+      </>)}
     </section>
   )
 }

@@ -4,7 +4,7 @@ import { motion, useScroll, useTransform } from 'framer-motion'
 import Card from '../components/Card'
 import Magnetic from '../components/Magnetic'
 import StreakReminder from '../components/StreakReminder'
-import { DailyTip, DAILY_TIPS, StatsCards, QuickActions, ActivityFeed } from '../components/home'
+import { DailyTip, DAILY_TIPS, StatsCards, QuickActions, ActivityFeed, WeeklyShowcase } from '../components/home'
 import { useAuth } from '../contexts/AuthContext'
 import { db } from '../lib/firebase'
 import { collection, query, where, orderBy, limit, getDocs, onSnapshot } from 'firebase/firestore'
@@ -289,6 +289,14 @@ export default function Home(){
 
         {/* Stats Row - Streak, Weekly Progress, Total Proofs */}
         <StatsCards userStats={userStats} />
+
+        {/* Weekly Showcase - Fanned Card Stacks */}
+        <WeeklyShowcase
+          activities={activityFeed}
+          leaderboard={leaderboard}
+          userStats={userStats}
+          achievements={achievements}
+        />
 
         {/* Cards Row 2 - Goals, Leaderboard, Events, Quick Actions */}
         <div className="mt-4 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

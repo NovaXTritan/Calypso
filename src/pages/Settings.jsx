@@ -12,6 +12,8 @@ import {
   requestNotificationPermission
 } from '../lib/notifications'
 import { trackError, ErrorCategory } from '../utils/errorTracking'
+import WhatsAppSettings from '../components/WhatsAppSettings'
+import NotificationHistory from '../components/NotificationHistory'
 
 export default function Settings(){
   const { currentUser, changeEmail, changePassword, resetPassword, updateUserProfile, logout } = useAuth()
@@ -502,6 +504,12 @@ export default function Settings(){
             {savingPreferences ? 'Saving...' : 'Save Preferences'}
           </button>
         </div>
+
+        {/* WhatsApp Notifications */}
+        <WhatsAppSettings />
+
+        {/* Notification History */}
+        <NotificationHistory />
 
         {/* Appearance - FIXED: No more "Light (Coming soon)" */}
         <div className="glass p-6 rounded-2xl">

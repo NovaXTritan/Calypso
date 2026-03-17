@@ -1,0 +1,20 @@
+Template Name: cosmos_streak_alert
+Category: UTILITY
+Language: en
+
+Header: None
+
+Body:
+{{1}}
+
+Footer: Reply STOP to unsubscribe
+
+Buttons:
+- Quick Reply: "Submit Proof"
+
+---
+Notes:
+- Sent at 9 PM IST to users with active streaks who haven't submitted proof
+- Quick reply button encourages immediate action
+- Cost in India: Rs 0.13 per message (utility rate)
+- Submit via Meta Business Manager > WhatsApp > Message Templates

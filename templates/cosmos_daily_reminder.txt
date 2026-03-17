@@ -1,0 +1,19 @@
+Template Name: cosmos_daily_reminder
+Category: UTILITY
+Language: en
+
+Header: None
+
+Body:
+{{1}}
+
+Footer: Cosmos - Your Accountability Engine
+
+Buttons: None
+
+---
+Notes:
+- Single dynamic parameter {{1}} contains the full AI-generated message
+- Used for morning routine reminders, learning nudges, and project reminders
+- Cost in India: Rs 0.13 per message (utility rate)
+- Submit via Meta Business Manager > WhatsApp > Message Templates

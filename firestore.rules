@@ -108,12 +108,44 @@ service cloud.firestore {
                (data.bio == null || data.bio is string) &&
                (data.photoURL == null || data.photoURL is string) &&
                (data.joinedPods == null || data.joinedPods is list) &&
-               (data.goals == null || data.goals is list);
+               (data.goals == null || data.goals is list) &&
+               // WhatsApp notification fields
+               (!('phone' in data) || data.phone == null || data.phone is string) &&
+               (!('whatsappOptIn' in data) || data.whatsappOptIn is bool) &&
+               (!('notificationPreferences' in data) || data.notificationPreferences is map);
       }
 
       // User's private settings
       match /private/{document=**} {
         allow read, write: if isOwner(userId);
+      }
+
+      // User goals (for AI journal analysis)
+      match /goals/{goalId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        allow update: if isAuthenticated() && request.auth.uid == userId;
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+      }
+
+      // AI-generated insights (read-only for users, Cloud Functions write)
+      match /insights/{insightId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow write: if false;
+      }
+
+      // AI chat sessions
+      match /chatSessions/{sessionId} {
+        allow read: if isAuthenticated() && request.auth.uid == userId;
+        allow create: if isAuthenticated() && request.auth.uid == userId;
+        allow update: if false; // Cloud Functions update messageCount etc.
+        allow delete: if isAuthenticated() && request.auth.uid == userId;
+
+        // Chat messages (read-only for users, Cloud Functions write both user + assistant messages)
+        match /messages/{messageId} {
+          allow read: if isAuthenticated() && request.auth.uid == userId;
+          allow write: if false; // Cloud Functions handle all writes to ensure integrity
+        }
       }
     }
 
@@ -530,6 +562,40 @@ service cloud.firestore {
         return validString(data.event, 1, 100) &&
                data.keys().size() <= 20;
       }
+    }
+
+    // ========================================
+    // WHATSAPP SERVICE WINDOWS (CLOUD FUNCTIONS ONLY)
+    // ========================================
+    match /serviceWindows/{phoneNumber} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // ========================================
+    // WHATSAPP NOTIFICATION LOGS
+    // ========================================
+    match /notificationLogs/{logId} {
+      // Users can read their own notification logs
+      allow read: if isAuthenticated() &&
+                    resource.data.userId == request.auth.uid;
+      // Only Cloud Functions write
+      allow write: if false;
+    }
+
+    // ========================================
+    // WHATSAPP FAILED NOTIFICATIONS (CLOUD FUNCTIONS ONLY)
+    // ========================================
+    match /failedNotifications/{docId} {
+      allow read, write: if false;
+    }
+
+    // ========================================
+    // WHATSAPP TEMPLATES (READ-ONLY FOR USERS)
+    // ========================================
+    match /whatsappTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
     }
 
     // ========================================

@@ -2,14 +2,37 @@
  * Cosmos Cloud Functions
  *
  * Aggregates pod statistics to reduce client-side Firestore reads
+ * + WhatsApp notification system (compiled from TypeScript in lib/)
  *
- * Deploy: firebase deploy --only functions
+ * Deploy: npm run deploy (builds TS first, then deploys)
  */
 
 const functions = require('firebase-functions')
 const admin = require('firebase-admin')
 
 admin.initializeApp()
+
+// Re-export WhatsApp notification functions from compiled TypeScript
+try {
+  const whatsapp = require('./lib/whatsapp/index')
+  exports.whatsappWebhook = whatsapp.whatsappWebhook
+  exports.morningRoutine = whatsapp.morningRoutine
+  exports.streakAlert = whatsapp.streakAlert
+  exports.podDigest = whatsapp.podDigest
+  exports.journalInsight = whatsapp.journalInsight
+} catch (e) {
+  console.warn('WhatsApp functions not available (run npm run build first):', e.message)
+}
+
+// Re-export Journal AI functions from compiled TypeScript
+try {
+  const journalAI = require('./lib/journal-ai/index')
+  exports.journalChat = journalAI.journalChat
+  exports.journalWeeklyAnalysis = journalAI.journalWeeklyAnalysis
+  exports.analyzeJournalOnDemand = journalAI.analyzeJournalOnDemand
+} catch (e) {
+  console.warn('Journal AI functions not available (run npm run build first):', e.message)
+}
 const db = admin.firestore()
 
 // Collection names

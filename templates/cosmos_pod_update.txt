@@ -1,0 +1,19 @@
+Template Name: cosmos_pod_update
+Category: UTILITY
+Language: en
+
+Header: None
+
+Body:
+{{1}}
+
+Footer: Cosmos Pods
+
+Buttons: None
+
+---
+Notes:
+- Daily pod activity digest sent at 8 PM IST
+- Contains aggregated pod member activity and proof summaries
+- Cost in India: Rs 0.13 per message (utility rate)
+- Submit via Meta Business Manager > WhatsApp > Message Templates

@@ -1,0 +1,21 @@
+Template Name: cosmos_streak_recovery
+Category: MARKETING
+Language: en
+
+Header: None
+
+Body:
+{{1}}
+
+Footer: Cosmos
+
+Buttons:
+- CTA: "Submit Now" -> URL: https://cosmos.app/proof
+
+---
+Notes:
+- Re-engagement template for users who have broken their streak
+- MARKETING category (higher cost): Rs 0.88 per message in India
+- Contains a CTA button linking to the proof submission page
+- Use sparingly to control costs
+- Submit via Meta Business Manager > WhatsApp > Message Templates
