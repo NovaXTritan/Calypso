@@ -8,8 +8,8 @@ export const GEMINI_CONFIG = {
   get apiKey(): string {
     return process.env.GEMINI_API_KEY || "";
   },
-  chatModel: "gemini-2.0-flash-exp" as const,
-  analysisModel: "gemini-2.0-flash-exp" as const,
+  chatModel: "gemini-2.0-flash" as const,
+  analysisModel: "gemini-2.0-flash" as const,
   maxChatTokens: 1024,
   maxAnalysisTokens: 2048,
   chatTemperature: 0.7,
